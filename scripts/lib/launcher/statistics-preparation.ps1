@@ -220,7 +220,7 @@ function New-LauncherStatisticsPreparation {
 
     return New-TerminalPreparationView `
         -ViewId preparation.repository-stats `
-        -Banner 'Deckle Interaction Preview' `
+        -Banner 'Deckle Scripts' `
         -Context 'Maintenance / Repository statistics' `
         -ActionId repository-stats `
         -Revision $Revision `

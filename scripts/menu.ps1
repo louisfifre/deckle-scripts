@@ -1,8 +1,7 @@
-# deckle-preview.ps1 - Parallel, preview-only terminal interaction launcher.
+# menu.ps1 - The repository's terminal menu.
 #
-# The stable scripts/deckle.ps1 launcher remains the daily workflow entry point.
-# This preview exercises the replacement interaction model without invoking any
-# repository command. Use snapshot mode to inspect deterministic layouts.
+# Actions are previewed only: no repository command runs yet. Use snapshot
+# mode to inspect deterministic layouts.
 
 [CmdletBinding()]
 param(
@@ -21,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $LibDir = Join-Path $ScriptDir 'lib'
 $RepositoryRoot = Split-Path -Parent $ScriptDir
-$PreviewBanner = 'Deckle Interaction Preview'
+$Banner = 'Deckle Scripts'
 
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
 Import-Module (Join-Path $LibDir 'script-discovery.psm1') -Force
@@ -46,16 +45,16 @@ function Get-LauncherConfirmationSnapshot {
     $target = if ($item.PSObject.Properties['Kind'] -and $item.Kind -eq 'ActionRow') { $item.Variants[0] } else { $item }
     $levelPath = if ($row.RelativePath.Contains('/')) { $row.RelativePath.Substring(0, $row.RelativePath.LastIndexOf('/')) } else { '' }
     $level = Resolve-LauncherDiscoveredAccess -Catalog $DiscoveredCatalog -AccessId $levelPath
-    $owner = ConvertTo-LauncherDiscoveredView -Level $level -Banner $PreviewBanner -IsRoot:($levelPath -eq '')
+    $owner = ConvertTo-LauncherDiscoveredView -Level $level -Banner $Banner -IsRoot:($levelPath -eq '')
     return [pscustomobject]@{
-        View = New-LauncherConfirmationView -Action $target.Payload -Banner $PreviewBanner -OwnerActionMenuId $owner.ViewId
+        View = New-LauncherConfirmationView -Action $target.Payload -Banner $Banner -OwnerActionMenuId $owner.ViewId
         Owner = $owner
     }
 }
 
 if ($HostSmokeTest) {
     $smokeView = if ($Snapshot -eq 'Catalog') {
-        ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot
+        ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $Banner -IsRoot
     } elseif ($Snapshot) {
         Get-LauncherSnapshotView -Name $Snapshot -RepositoryRoot $RepositoryRoot
     } else {
@@ -98,7 +97,7 @@ if ($HostSmokeTest) {
 if ($Snapshot) {
     $confirmationSnapshot = if ($Snapshot -eq 'Confirmation') { Get-LauncherConfirmationSnapshot } else { $null }
     $view = switch ($Snapshot) {
-        'Catalog' { ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot }
+        'Catalog' { ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $Banner -IsRoot }
         'Confirmation' { $confirmationSnapshot.View }
         default { Get-LauncherSnapshotView -Name $Snapshot -RepositoryRoot $RepositoryRoot }
     }
@@ -129,7 +128,7 @@ if ($Snapshot) {
 }
 
 $rootView = if ($Discovered) {
-    ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot
+    ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $Banner -IsRoot
 } else {
     Get-LauncherRootView
 }
@@ -140,7 +139,7 @@ Start-TerminalInteraction -RootView $rootView -Palette $Palette -IntentHandler {
         if ($null -eq $level) { throw "Unknown discovered Access '$($request.Payload.AccessId)'." }
         return [pscustomobject]@{
             Kind = 'OpenView'
-            View = ConvertTo-LauncherDiscoveredView -Level $level -Banner $PreviewBanner
+            View = ConvertTo-LauncherDiscoveredView -Level $level -Banner $Banner
         }
     }
     if ($Discovered -and $request.IntentKind -eq 'Action') {
@@ -150,7 +149,7 @@ Start-TerminalInteraction -RootView $rootView -Palette $Palette -IntentHandler {
         if ($sourceView.Kind -eq 'ActionMenu' -and $request.Payload.Confirmation) {
             return [pscustomobject]@{
                 Kind = 'OpenView'
-                View = New-LauncherConfirmationView -Action $request.Payload -Banner $PreviewBanner -OwnerActionMenuId $sourceView.ViewId
+                View = New-LauncherConfirmationView -Action $request.Payload -Banner $Banner -OwnerActionMenuId $sourceView.ViewId
             }
         }
         if (Test-LauncherConfirmationView -View $sourceView) {

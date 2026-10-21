@@ -27,7 +27,7 @@ function Get-TargetSegment([object]$Frame, [object]$Placement) {
     return $matches[0]
 }
 
-$scopeFixture = Join-Path ([System.IO.Path]::GetTempPath()) ('deckle-preview-scope-' + [guid]::NewGuid())
+$scopeFixture = Join-Path ([System.IO.Path]::GetTempPath()) ('launcher-scope-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $scopeFixture | Out-Null
 try {
     & git -C $scopeFixture init --quiet

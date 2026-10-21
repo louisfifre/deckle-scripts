@@ -66,13 +66,13 @@ function Get-LauncherRootView {
         )
         New-TerminalSection -Label Workspace -Items @($project, $releaseAccess, $maintenance, $setup, $quit)
     )
-    return New-TerminalActionMenuView -ViewId menu.root -Banner 'Deckle Interaction Preview' -Sections $sections
+    return New-TerminalActionMenuView -ViewId menu.root -Banner 'Deckle Scripts' -Sections $sections
 }
 
 function Get-LauncherProjectView {
     return New-TerminalActionMenuView `
         -ViewId menu.project `
-        -Banner 'Deckle Interaction Preview' `
+        -Banner 'Deckle Scripts' `
         -Context Project `
         -BackTarget (New-LauncherBackTarget) `
         -Sections @(
@@ -89,7 +89,7 @@ function Get-LauncherProjectView {
 function Get-LauncherReleaseView {
     return New-TerminalActionMenuView `
         -ViewId menu.release `
-        -Banner 'Deckle Interaction Preview' `
+        -Banner 'Deckle Scripts' `
         -Context Release `
         -BackTarget (New-LauncherBackTarget) `
         -Sections @(
@@ -107,7 +107,7 @@ function Get-LauncherReleaseView {
 function Get-LauncherMaintenanceView {
     return New-TerminalActionMenuView `
         -ViewId menu.maintenance `
-        -Banner 'Deckle Interaction Preview' `
+        -Banner 'Deckle Scripts' `
         -Context Maintenance `
         -BackTarget (New-LauncherBackTarget) `
         -Sections @(
@@ -129,7 +129,7 @@ function Get-LauncherMaintenanceView {
 function Get-LauncherSetupView {
     return New-TerminalActionMenuView `
         -ViewId menu.setup `
-        -Banner 'Deckle Interaction Preview' `
+        -Banner 'Deckle Scripts' `
         -Context Setup `
         -BackTarget (New-LauncherBackTarget) `
         -Sections @(

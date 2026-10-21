@@ -29,7 +29,7 @@ function New-LauncherExecution {
     )
     return New-TerminalExecutionView `
         -ViewId "execution.$($Action.ActionId)" `
-        -Banner 'Deckle Interaction Preview' `
+        -Banner 'Deckle Scripts' `
         -Context "$($Action.Label)$variantLabel" `
         -State Completed `
         -JournalLines @($journal) `
