@@ -1,0 +1,11 @@
+# Git normalizes text to LF in the index; each type gets its native EOL on checkout.
+* text=auto
+
+# Scripts check out with Windows line endings, the platform the launcher runs on.
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+
+*.md   text eol=lf
+*.json text eol=lf
+.gitattributes text eol=lf
