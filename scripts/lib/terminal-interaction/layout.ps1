@@ -34,7 +34,7 @@ function New-TerminalFrameLine {
 }
 
 function Add-TerminalFrameLine {
-    param([Parameter(Mandatory)][object]$Frame)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame)
 
     if ($Frame.Lines.Count -ge $Frame.Height) { return -1 }
     $line = New-TerminalFrameLine -Width $Frame.Width
@@ -44,7 +44,7 @@ function Add-TerminalFrameLine {
 
 function Add-TerminalFrameSegment {
     param(
-        [Parameter(Mandatory)][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
         [Parameter(Mandatory)][int]$LineIndex,
         [Parameter(Mandatory)][int]$X,
         [AllowEmptyString()][string]$Text,
@@ -79,8 +79,8 @@ function Add-TerminalFrameSegment {
 
 function Add-TerminalTargetPlacement {
     param(
-        [Parameter(Mandatory)][object]$Frame,
-        [Parameter(Mandatory)][object]$Target,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Target')][object]$Target,
         [Parameter(Mandatory)][int]$X,
         [Parameter(Mandatory)][int]$Y,
         [Parameter(Mandatory)][ValidateRange(1, 1000)][int]$Width
@@ -149,7 +149,7 @@ function Split-TerminalText {
 
 function Get-TerminalTargetPresentationRole {
     param(
-        [Parameter(Mandatory)][object]$Target,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Target')][object]$Target,
         [switch]$AsActionVariant
     )
 
@@ -159,8 +159,8 @@ function Get-TerminalTargetPresentationRole {
 
 function Add-TerminalTarget {
     param(
-        [Parameter(Mandatory)][object]$Frame,
-        [Parameter(Mandatory)][object]$Target,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Target')][object]$Target,
         [Parameter(Mandatory)][int]$LineIndex,
         [Parameter(Mandatory)][int]$X,
         [Parameter(Mandatory)][int]$Width,
@@ -205,7 +205,7 @@ function Add-TerminalTarget {
 
 function Add-TerminalSectionHeading {
     param(
-        [Parameter(Mandatory)][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Label
     )
 
@@ -374,7 +374,7 @@ function Get-TerminalMenuGrid {
 
 function Add-TerminalMenuRow {
     param(
-        [Parameter(Mandatory)][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
         [Parameter(Mandatory)][object]$Row,
         [Parameter(Mandatory)][object]$Grid,
         [Parameter(Mandatory)][bool]$Wide,
@@ -455,8 +455,8 @@ function Add-TerminalMenuRow {
 
 function Add-TerminalActionMenuBody {
     param(
-        [Parameter(Mandatory)][object]$Frame,
-        [Parameter(Mandatory)][object]$View,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.ActionMenuView')][object]$View,
         [Parameter(Mandatory)][object]$NavigationGrid,
         [string]$FocusedTargetId
     )
@@ -493,8 +493,8 @@ function Add-TerminalActionMenuBody {
 
 function Add-TerminalContentBody {
     param(
-        [Parameter(Mandatory)][object]$Frame,
-        [Parameter(Mandatory)][object]$View,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.ContentView')][object]$View,
         [Parameter(Mandatory)][object]$NavigationGrid,
         [string]$FocusedTargetId
     )
@@ -518,8 +518,8 @@ function Add-TerminalContentBody {
 
 function Add-TerminalPagedBody {
     param(
-        [Parameter(Mandatory)][object]$Frame,
-        [Parameter(Mandatory)][object]$BodyFrame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$BodyFrame,
         [Parameter(Mandatory)][int]$BodyOffset,
         [string]$FocusedTargetId
     )

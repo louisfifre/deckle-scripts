@@ -50,7 +50,7 @@ function New-TerminalActionRow {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Label,
-        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][object[]]$Variants
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][PSTypeName('DeckleScripts.TerminalInteraction.Target')][object[]]$Variants
     )
 
     foreach ($variant in $Variants) {
@@ -169,7 +169,7 @@ function New-TerminalContentView {
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Banner,
         [string]$Context,
         [Parameter(Mandatory)][object[]]$Lines,
-        [object[]]$Targets = @(),
+        [PSTypeName('DeckleScripts.TerminalInteraction.Target')][object[]]$Targets = @(),
         [object]$BackTarget,
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OwnerActionMenuId
     )

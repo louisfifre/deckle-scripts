@@ -30,7 +30,7 @@ function New-TerminalSelector {
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$SelectorId,
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$FilterLabel,
         [Parameter(Mandatory)][ValidateSet('Single', 'Multiple')][string]$SelectionMode,
-        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][object[]]$Options,
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][PSTypeName('DeckleScripts.TerminalInteraction.SelectionOption')][object[]]$Options,
         [AllowEmptyCollection()][string[]]$SelectedValues = @()
     )
 
@@ -131,10 +131,10 @@ function New-TerminalPreparationView {
         [string]$Context,
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$ActionId,
         [Parameter(Mandatory)][ValidateRange(1, 2147483647)][int]$Revision,
-        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][object[]]$Selectors,
-        [Parameter(Mandatory)][object]$EffectiveScope,
-        [Parameter(Mandatory)][object]$Review,
-        [Parameter(Mandatory)][object]$ConfirmationTarget,
+        [Parameter(Mandatory)][ValidateNotNullOrEmpty()][PSTypeName('DeckleScripts.TerminalInteraction.Selector')][object[]]$Selectors,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.EffectiveScope')][object]$EffectiveScope,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Review')][object]$Review,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Target')][object]$ConfirmationTarget,
         [object]$BackTarget,
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$OwnerActionMenuId
     )

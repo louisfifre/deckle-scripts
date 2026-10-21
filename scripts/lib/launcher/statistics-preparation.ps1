@@ -57,7 +57,7 @@ function Get-LauncherOptionLabel {
 
 function Get-LauncherSelectedLabels {
     param(
-        [Parameter(Mandatory)][object]$Selector,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Selector')][object]$Selector,
         [string]$EmptyLabel = 'None selected'
     )
 
@@ -71,7 +71,7 @@ function Get-LauncherSelectedLabels {
 }
 
 function Get-LauncherScopeSnapshot {
-    param([Parameter(Mandatory)][object]$Selector)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Selector')][object]$Selector)
 
     $selectedValues = @($Selector.SelectedValues)
     return [pscustomobject][ordered]@{
@@ -82,7 +82,7 @@ function Get-LauncherScopeSnapshot {
 }
 
 function Get-LauncherScopeDescription {
-    param([Parameter(Mandatory)][object]$Selector)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Selector')][object]$Selector)
 
     $snapshot = Get-LauncherScopeSnapshot -Selector $Selector
     if ($snapshot.IsWholeRepository) { return 'Whole repository' }
@@ -91,7 +91,7 @@ function Get-LauncherScopeDescription {
 }
 
 function Get-LauncherScopeDetailLines {
-    param([Parameter(Mandatory)][object]$Selector)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Selector')][object]$Selector)
 
     $snapshot = Get-LauncherScopeSnapshot -Selector $Selector
     if ($snapshot.IsWholeRepository) {
@@ -234,7 +234,7 @@ function New-LauncherStatisticsPreparation {
 
 function Update-LauncherStatisticsPreparation {
     param(
-        [Parameter(Mandatory)][object]$View,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.PreparationView')][object]$View,
         [Parameter(Mandatory)][object]$Adjustment
     )
 

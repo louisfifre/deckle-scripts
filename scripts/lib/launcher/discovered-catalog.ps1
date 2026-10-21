@@ -18,7 +18,7 @@ function New-LauncherQuitTarget {
 
 function New-LauncherDiscoveredActionTarget {
     param(
-        [Parameter(Mandatory)][object]$Row,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.ActionRow')][object]$Row,
         [Parameter(Mandatory)][string]$Label,
         [string]$Variant
     )
@@ -43,7 +43,7 @@ function New-LauncherDiscoveredActionTarget {
 }
 
 function ConvertTo-LauncherDiscoveredItem {
-    param([Parameter(Mandatory)][object]$Row)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.ActionRow')][object]$Row)
 
     $variants = @($Row.Variants)
     if ($variants.Count -eq 0) {
@@ -56,7 +56,7 @@ function ConvertTo-LauncherDiscoveredItem {
 }
 
 function New-LauncherDiscoveredAccessTarget {
-    param([Parameter(Mandatory)][object]$Level)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Level')][object]$Level)
 
     return New-TerminalTarget `
         -TargetId "access.$(ConvertTo-LauncherIdPath -RelativePath $Level.RelativePath)" `
@@ -68,7 +68,7 @@ function New-LauncherDiscoveredAccessTarget {
 function ConvertTo-LauncherDiscoveredView {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][object]$Level,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Level')][object]$Level,
         [Parameter(Mandatory)][string]$Banner,
         [object]$BackTarget,
         [switch]$IsRoot
@@ -113,7 +113,7 @@ function ConvertTo-LauncherDiscoveredView {
 function Resolve-LauncherDiscoveredAccess {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory)][object]$Catalog,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Level')][object]$Catalog,
         [Parameter(Mandatory)][AllowEmptyString()][string]$AccessId
     )
 

@@ -52,7 +52,7 @@ function Sort-CatalogEntries {
 
 function New-CatalogRows {
     param(
-        [Parameter(Mandatory)][object]$Header,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Header')][object]$Header,
         [Parameter(Mandatory)][string]$RelativePath
     )
 
@@ -204,7 +204,7 @@ function Get-ScriptCatalog {
 
 function Get-CatalogHiddenScripts {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][object]$Catalog)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Level')][object]$Catalog)
 
     $hidden = [System.Collections.Generic.List[object]]::new()
     foreach ($entry in $Catalog.Hidden) { $hidden.Add($entry) }
@@ -216,7 +216,7 @@ function Get-CatalogHiddenScripts {
 
 function Get-CatalogRows {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][object]$Catalog)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Level')][object]$Catalog)
 
     $rows = [System.Collections.Generic.List[object]]::new()
     foreach ($section in $Catalog.Sections) {

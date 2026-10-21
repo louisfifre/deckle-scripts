@@ -1,7 +1,7 @@
 # Execution Journal and Tracking Panel layout.
 
 function Get-TerminalTrackingLines {
-    param([Parameter(Mandatory)][object]$View)
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.ExecutionView')][object]$View)
 
     $lines = [System.Collections.Generic.List[object]]::new()
     foreach ($step in $View.TrackingSteps) {
@@ -33,7 +33,7 @@ function Get-TerminalTrackingLines {
 
 function Get-TerminalTrackingVisualLines {
     param(
-        [Parameter(Mandatory)][object]$View,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.ExecutionView')][object]$View,
         [Parameter(Mandatory)][ValidateRange(1, 2147483647)][int]$Width
     )
 
@@ -51,8 +51,8 @@ function Get-TerminalTrackingVisualLines {
 
 function Add-TerminalExecutionBody {
     param(
-        [Parameter(Mandatory)][object]$Frame,
-        [Parameter(Mandatory)][object]$View,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.ExecutionView')][object]$View,
         [Parameter(Mandatory)][object]$NavigationGrid,
         [string]$FocusedTargetId,
         [int]$JournalOffset

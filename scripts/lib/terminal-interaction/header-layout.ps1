@@ -120,7 +120,7 @@ function Get-TerminalHeaderCommandRows {
 
 function Add-TerminalCommandRow {
     param(
-        [Parameter(Mandatory)][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
         [Parameter(Mandatory)][int]$LineIndex,
         [Parameter(Mandatory)][object[]]$Commands,
         [Parameter(Mandatory)][int]$StartX
@@ -139,7 +139,7 @@ function Add-TerminalCommandRow {
 
 function Add-TerminalHeader {
     param(
-        [Parameter(Mandatory)][object]$Frame,
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.Frame')][object]$Frame,
         [Parameter(Mandatory)][object]$View,
         [bool]$SupportsUnicode = $true
     )
