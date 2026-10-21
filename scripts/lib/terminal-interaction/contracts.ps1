@@ -33,7 +33,7 @@ function New-TerminalTarget {
     }
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.Target'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.Target'
         TargetId = $TargetId
         Label = $Label
         IntentKind = $IntentKind
@@ -60,7 +60,7 @@ function New-TerminalActionRow {
     }
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.ActionRow'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.ActionRow'
         Kind = 'ActionRow'
         Label = $Label
         Variants = @($Variants)
@@ -84,7 +84,7 @@ function New-TerminalSection {
     }
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.Section'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.Section'
         Label = $Label
         Items = @($Items)
     }
@@ -149,7 +149,7 @@ function New-TerminalActionMenuView {
     )
 
     $descriptor = [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.ActionMenuView'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.ActionMenuView'
         Kind = 'ActionMenu'
         ViewId = $ViewId
         Banner = $Banner
@@ -175,7 +175,7 @@ function New-TerminalContentView {
     )
 
     $descriptor = [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.ContentView'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.ContentView'
         Kind = 'Content'
         ViewId = $ViewId
         Banner = $Banner
@@ -215,7 +215,7 @@ function New-TerminalExecutionView {
     }
 
     $descriptor = [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.ExecutionView'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.ExecutionView'
         Kind = 'Execution'
         ViewId = $ViewId
         Banner = $Banner

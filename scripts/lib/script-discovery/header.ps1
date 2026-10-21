@@ -171,7 +171,7 @@ function Read-ScriptHeader {
 
     $fullPath = [System.IO.Path]::GetFullPath($Path)
     $header = [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.ScriptDiscovery.Header'
+        PSTypeName = 'DeckleScripts.ScriptDiscovery.Header'
         Path = $fullPath
         Name = [System.IO.Path]::GetFileNameWithoutExtension($fullPath)
         Status = $null

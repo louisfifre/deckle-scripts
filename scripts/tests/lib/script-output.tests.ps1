@@ -14,11 +14,11 @@ $step = @(& { Write-WorkflowStep -Output $output -Message 'Compile Deckle' } 6>&
 Assert-Equal 3 $step.Count 'a workflow step keeps its breathing line and two visual segments'
 Assert-Equal '[build] ' ([string]$step[1].MessageData.Message) 'category is emitted as its own segment'
 Assert-Equal (Get-OutputColor -Role Category) $step[1].MessageData.ForegroundColor 'category uses the shared semantic color'
-Assert-Equal 'Category' $step[1].MessageData.DeckleRole 'category keeps its semantic role independently from color'
-Assert-Equal $true ($step[1].Tags -contains 'Deckle.Output') 'semantic output is tagged for launcher collection'
+Assert-Equal 'Category' $step[1].MessageData.OutputRole 'category keeps its semantic role independently from color'
+Assert-Equal $true ($step[1].Tags -contains 'DeckleScripts.Output') 'semantic output is tagged for launcher collection'
 Assert-Equal 'Compile Deckle' ([string]$step[2].MessageData.Message) 'step information is emitted separately'
 Assert-Equal (Get-OutputColor -Role Heading) $step[2].MessageData.ForegroundColor 'step title uses the shared heading color'
-Assert-Equal 'Heading' $step[2].MessageData.DeckleRole 'step title keeps its semantic role independently from color'
+Assert-Equal 'Heading' $step[2].MessageData.OutputRole 'step title keeps its semantic role independently from color'
 
 $action = @(& { Write-WorkflowAction -Output $output -Message 'Killing Deckle PID 25628' } 6>&1)
 Assert-Equal (Get-OutputColor -Role Action) $action[1].MessageData.ForegroundColor 'an operation in progress uses the action color'

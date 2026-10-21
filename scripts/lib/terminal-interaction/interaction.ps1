@@ -85,7 +85,7 @@ function Start-TerminalInteraction {
     param(
         [Parameter(Mandatory)][object]$RootView,
         [Parameter(Mandatory)][scriptblock]$IntentHandler,
-        [ValidateSet('Terminal', 'Deckle')][string]$Palette = 'Terminal'
+        [ValidateSet('Terminal', 'TrueColor')][string]$Palette = 'Terminal'
     )
 
     $viewStack = [System.Collections.Generic.List[object]]::new()

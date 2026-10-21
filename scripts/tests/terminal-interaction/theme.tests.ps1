@@ -36,8 +36,8 @@ $module = Get-Module terminal-interaction
 Assert-Equal 'Dark' (& $module { Resolve-TerminalThemeVariant -BackgroundColor ([ConsoleColor]::Black) }) 'an indexed dark background reads as dark'
 Assert-Equal 'Light' (& $module { Resolve-TerminalThemeVariant -BackgroundColor ([ConsoleColor]::White) }) 'an indexed light background reads as light'
 Assert-Equal 'Terminal' (& $module { Resolve-TerminalPalette -Palette Terminal -BackgroundColor ([ConsoleColor]::White) }) 'the Terminal palette ignores the console background'
-Assert-Equal 'DeckleDark' (& $module { Resolve-TerminalPalette -Palette Deckle -BackgroundColor ([ConsoleColor]::Black) }) 'the Deckle palette takes its dark variant on a dark background'
-Assert-Equal 'DeckleLight' (& $module { Resolve-TerminalPalette -Palette Deckle -BackgroundColor ([ConsoleColor]::White) }) 'the Deckle palette takes its light variant on a light background'
+Assert-Equal 'TrueColorDark' (& $module { Resolve-TerminalPalette -Palette TrueColor -BackgroundColor ([ConsoleColor]::Black) }) 'the TrueColor palette takes its dark variant on a dark background'
+Assert-Equal 'TrueColorLight' (& $module { Resolve-TerminalPalette -Palette TrueColor -BackgroundColor ([ConsoleColor]::White) }) 'the TrueColor palette takes its light variant on a light background'
 
 $palette = @{
     Banner = [ConsoleColor]::Blue
@@ -62,8 +62,8 @@ $palette = @{
 foreach ($entry in $palette.GetEnumerator()) {
     $style = Get-TerminalPresentationStyle -Role $entry.Key
     Assert-Equal $entry.Value $style.Foreground "the Terminal palette maps $($entry.Key) to its console colour"
-    $designedStyle = Get-TerminalPresentationStyle -Role $entry.Key -Palette DeckleDark
-    Assert-Equal $entry.Value $designedStyle.Foreground "the Deckle palette keeps the same console colour for $($entry.Key) as its legacy fallback"
+    $designedStyle = Get-TerminalPresentationStyle -Role $entry.Key -Palette TrueColorDark
+    Assert-Equal $entry.Value $designedStyle.Foreground "the TrueColor palette keeps the same console colour for $($entry.Key) as its legacy fallback"
 }
 foreach ($role in @('Body', 'Action', 'ActionVariant', 'Adjust')) {
     Assert-Equal $null (Get-TerminalPresentationStyle -Role $role).Foreground "$role reads as body text in the host foreground"
@@ -94,19 +94,19 @@ $figmaRoles = @(
     [pscustomobject]@{ Role = 'PanelSeparator'; Dark = '204,204,204'; Light = '83,83,83' }
 )
 foreach ($expectedRole in $figmaRoles) {
-    $darkStyle = Get-TerminalPresentationStyle -Role $expectedRole.Role -Palette DeckleDark
-    $lightStyle = Get-TerminalPresentationStyle -Role $expectedRole.Role -Palette DeckleLight
+    $darkStyle = Get-TerminalPresentationStyle -Role $expectedRole.Role -Palette TrueColorDark
+    $lightStyle = Get-TerminalPresentationStyle -Role $expectedRole.Role -Palette TrueColorLight
     Assert-Rgb $expectedRole.Dark $darkStyle.ForegroundRgb "$($expectedRole.Role) uses the Figma dark token"
     Assert-Rgb $expectedRole.Light $lightStyle.ForegroundRgb "$($expectedRole.Role) uses the Figma light token"
     Assert-Rgb '1,22,39' $darkStyle.BackgroundRgb "$($expectedRole.Role) uses the Figma dark surface"
     Assert-Rgb '246,246,246' $lightStyle.BackgroundRgb "$($expectedRole.Role) uses the Figma light surface"
 }
 foreach ($mutedRole in @('Context', 'Supporting', 'PrimarySeparator', 'PagingSeparator', 'Separator', 'CommandLabel')) {
-    $mutedStyle = Get-TerminalPresentationStyle -Role $mutedRole -Palette DeckleDark
+    $mutedStyle = Get-TerminalPresentationStyle -Role $mutedRole -Palette TrueColorDark
     Assert-Equal $null $mutedStyle.ForegroundRgb "$mutedRole keeps its distinct muted neutral"
 }
-$enabledNavigation = Get-TerminalPresentationStyle -Role Navigation -Palette DeckleDark
-$disabledNavigation = Get-TerminalPresentationStyle -Role Navigation -State Disabled -Palette DeckleDark
+$enabledNavigation = Get-TerminalPresentationStyle -Role Navigation -Palette TrueColorDark
+$disabledNavigation = Get-TerminalPresentationStyle -Role Navigation -State Disabled -Palette TrueColorDark
 Assert-Equal $false ($null -eq $enabledNavigation.ForegroundRgb) 'enabled Navigation keeps the body-neutral level'
 Assert-Equal $null $disabledNavigation.ForegroundRgb 'disabled Navigation drops to the muted level'
 Assert-Rgb '1,22,39' $disabledNavigation.BackgroundRgb 'a disabled target keeps the designed surface'
@@ -130,7 +130,7 @@ $neutralRoles = @(
     'Body', 'Context', 'Supporting', 'PrimarySeparator', 'PanelSeparator',
     'PagingSeparator', 'Separator', 'CommandKey', 'CommandLabel'
 )
-foreach ($themePalette in @('Terminal', 'DeckleDark', 'DeckleLight')) {
+foreach ($themePalette in @('Terminal', 'TrueColorDark', 'TrueColorLight')) {
     foreach ($role in $neutralRoles) {
         foreach ($state in @('Normal', 'Focused', 'Disabled')) {
             $style = Get-TerminalPresentationStyle -Role $role -State $state -Palette $themePalette
@@ -144,7 +144,7 @@ foreach ($themePalette in @('Terminal', 'DeckleDark', 'DeckleLight')) {
         Assert-Equal $null $disabledStyle.Background "$themePalette $role disabled state does not retain a chromatic background"
     }
 }
-foreach ($themePalette in @('DeckleDark', 'DeckleLight')) {
+foreach ($themePalette in @('TrueColorDark', 'TrueColorLight')) {
     $sectionRgb = @((Get-TerminalPresentationStyle -Role Section -Palette $themePalette).ForegroundRgb) -join ','
     $actionLabelRgb = @((Get-TerminalPresentationStyle -Role ActionLabel -Palette $themePalette).ForegroundRgb) -join ','
     $accessRgb = @((Get-TerminalPresentationStyle -Role Access -Palette $themePalette).ForegroundRgb) -join ','
@@ -172,25 +172,25 @@ $exitFocus = Get-TerminalPresentationStyle -Role Exit -State Focused
 Assert-Equal ([ConsoleColor]::Black) $exitFocus.Foreground 'focused Exit uses the classic ordinary selection foreground'
 Assert-Equal ([ConsoleColor]::Gray) $exitFocus.Background 'focused Exit uses the classic ordinary selection background'
 
-# The Deckle palette has one selection for every target.
-$designedActionFocus = Get-TerminalPresentationStyle -Role Action -State Focused -Palette DeckleDark
+# the TrueColor palette has one selection for every target.
+$designedActionFocus = Get-TerminalPresentationStyle -Role Action -State Focused -Palette TrueColorDark
 Assert-Equal ([ConsoleColor]::Black) $designedActionFocus.Foreground 'designed dark focus has a high-contrast legacy foreground'
 Assert-Equal ([ConsoleColor]::White) $designedActionFocus.Background 'designed dark focus has a high-contrast legacy background'
 Assert-Rgb '1,22,39' $designedActionFocus.ForegroundRgb 'dark focus reuses the dark surface as its text color'
 Assert-Rgb '255,255,255' $designedActionFocus.BackgroundRgb 'dark focus uses the Figma selection surface'
 foreach ($role in @('Access', 'Navigation', 'Danger', 'Error', 'Exit')) {
-    $designedFocus = Get-TerminalPresentationStyle -Role $role -State Focused -Palette DeckleDark
+    $designedFocus = Get-TerminalPresentationStyle -Role $role -State Focused -Palette TrueColorDark
     Assert-Equal ([ConsoleColor]::Black) $designedFocus.Foreground "designed focused $role shares the uniform selection fallback foreground"
     Assert-Equal ([ConsoleColor]::White) $designedFocus.Background "designed focused $role shares the uniform selection fallback background"
     Assert-Rgb '1,22,39' $designedFocus.ForegroundRgb "designed focused $role uses the uniform dark text token"
     Assert-Rgb '255,255,255' $designedFocus.BackgroundRgb "designed focused $role uses the uniform dark selection token"
 }
-$lightFocus = Get-TerminalPresentationStyle -Role Danger -State Focused -Palette DeckleLight
+$lightFocus = Get-TerminalPresentationStyle -Role Danger -State Focused -Palette TrueColorLight
 Assert-Equal ([ConsoleColor]::White) $lightFocus.Foreground 'light focus has a high-contrast legacy foreground'
 Assert-Equal ([ConsoleColor]::DarkGray) $lightFocus.Background 'light focus has a high-contrast legacy background'
 Assert-Rgb '246,246,246' $lightFocus.ForegroundRgb 'light focus reuses the light surface as its text color'
 Assert-Rgb '53,53,53' $lightFocus.BackgroundRgb 'light focus uses the Figma selection surface'
-foreach ($themePalette in @('Terminal', 'DeckleDark', 'DeckleLight')) {
+foreach ($themePalette in @('Terminal', 'TrueColorDark', 'TrueColorLight')) {
     $noColor = Get-TerminalPresentationStyle -Role Danger -State Focused -ColorCapability Unsupported -Palette $themePalette
     Assert-Equal $null $noColor.Foreground "$themePalette no-color mode emits no foreground dependency"
     Assert-Equal $null $noColor.Background "$themePalette no-color mode emits no background dependency"

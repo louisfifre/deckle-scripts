@@ -10,9 +10,9 @@ param(
     [ValidateRange(20, 240)][int]$Width = 100,
     [ValidateRange(8, 100)][int]$Height = 30,
     # Terminal paints with the console colours of the terminal's scheme;
-    # Deckle paints with the designed RGB palette, dark or light after the
+    # TrueColor paints with the designed RGB palette, dark or light after the
     # console background. Redirected output carries no colour either way.
-    [ValidateSet('Terminal', 'Deckle')][string]$Palette = 'Terminal',
+    [ValidateSet('Terminal', 'TrueColor')][string]$Palette = 'Terminal',
     [switch]$HostSmokeTest,
     [switch]$Discovered
 )

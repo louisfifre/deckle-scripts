@@ -9,7 +9,7 @@ function New-TerminalFramePlan {
     )
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.Frame'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.Frame'
         ViewId = $View.ViewId
         Width = $Width
         Height = $Height

@@ -74,12 +74,12 @@ Assert-Equal "$escape[1;1H$escape[37;40mEnter" $terminalCommandKey 'a command ke
 $terminalCommandLabel = Get-SegmentSequence -X 6 -Y 0 -Text 'Open' -Colors (Get-SegmentColors -Role CommandLabel -State Normal -HostState $terminalHost)
 Assert-Equal "$escape[1;7H$escape[90;40mOpen" $terminalCommandLabel 'a command label emits the classic muted foreground through the VT stream'
 
-# The Deckle palette sends its exact 24-bit tokens, console colours kept for a legacy host.
+# the TrueColor palette sends its exact 24-bit tokens, console colours kept for a legacy host.
 $darkHost = [pscustomobject]@{
     Color = 'Supported'
     OriginalForeground = [ConsoleColor]::Gray
     OriginalBackground = [ConsoleColor]::Black
-    Palette = 'DeckleDark'
+    Palette = 'TrueColorDark'
 }
 foreach ($expectedRoleColor in @(
     [pscustomobject]@{ Role = 'Section'; Color = [ConsoleColor]::Magenta; Rgb = '199,146,234' },
@@ -110,7 +110,7 @@ $lightHost = [pscustomobject]@{
     Color = 'Supported'
     OriginalForeground = [ConsoleColor]::DarkGray
     OriginalBackground = [ConsoleColor]::Black
-    Palette = 'DeckleLight'
+    Palette = 'TrueColorLight'
 }
 $lightFocusColors = Get-SegmentColors -Role Action -State Focused -HostState $lightHost
 Assert-Rgb '246,246,246' $lightFocusColors.ForegroundRgb 'a resolved light palette selects the Figma light focus foreground'

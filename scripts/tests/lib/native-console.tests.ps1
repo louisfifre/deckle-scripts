@@ -24,7 +24,7 @@ Assert-Equal $true ($captured -contains 'native stdout') 'native stdout is retai
 Assert-Equal $true ($captured -contains 'native stderr') 'native stderr is retained as launcher information'
 Assert-Equal $true ($captured -contains 'exit:3') 'capturing native lines does not contaminate the exit code'
 $nativeRecords = @($capturedRecords | Where-Object { $_ -is [System.Management.Automation.InformationRecord] })
-Assert-Equal 'StdOut' $nativeRecords[0].MessageData.DeckleStream 'native stdout keeps its diagnostic stream identity'
-Assert-Equal 'StdErr' $nativeRecords[1].MessageData.DeckleStream 'native stderr keeps its diagnostic stream identity'
+Assert-Equal 'StdOut' $nativeRecords[0].MessageData.OutputStream 'native stdout keeps its diagnostic stream identity'
+Assert-Equal 'StdErr' $nativeRecords[1].MessageData.OutputStream 'native stderr keeps its diagnostic stream identity'
 
 Write-Host 'native-console.tests.ps1: PASS' -ForegroundColor Green

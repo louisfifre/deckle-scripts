@@ -1,4 +1,4 @@
-# Shared end-of-action summaries for Deckle scripts.
+# Shared end-of-action summaries for the scripts the launcher runs.
 
 . (Join-Path $PSScriptRoot 'script-output.ps1')
 

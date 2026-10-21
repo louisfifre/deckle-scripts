@@ -10,7 +10,7 @@ function Get-ActionLogRole {
         return $null
     }
 
-    $roleProperty = $InputObject.MessageData.PSObject.Properties['DeckleRole']
+    $roleProperty = $InputObject.MessageData.PSObject.Properties['OutputRole']
     if ($null -ne $roleProperty -and $roleProperty.Value -in $script:OutputRoleColors.Keys) {
         return [string]$roleProperty.Value
     }
@@ -33,7 +33,7 @@ function Get-ActionLogStream {
         $InputObject.MessageData -isnot [System.Management.Automation.HostInformationMessage]) {
         return $null
     }
-    $streamProperty = $InputObject.MessageData.PSObject.Properties['DeckleStream']
+    $streamProperty = $InputObject.MessageData.PSObject.Properties['OutputStream']
     if ($null -ne $streamProperty) { return [string]$streamProperty.Value }
     return $null
 }

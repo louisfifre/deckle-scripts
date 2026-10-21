@@ -28,7 +28,7 @@ $summaryCategory = @($captured | Where-Object { [string]$_.MessageData.Message -
 $summaryBody = @($captured | Where-Object { [string]$_.MessageData.Message -eq 'Inventory complete.' })[0]
 Assert-Equal (Get-OutputColor -Role Category) $summaryCategory.MessageData.ForegroundColor 'summary category uses the shared category role'
 Assert-Equal $null $summaryBody.MessageData.ForegroundColor 'summary sentence inherits the normal terminal body color'
-Assert-Equal 'Body' $summaryBody.MessageData.DeckleRole 'summary sentence keeps the body role explicitly'
+Assert-Equal 'Body' $summaryBody.MessageData.OutputRole 'summary sentence keeps the body role explicitly'
 $resultValue = @($captured | Where-Object { [string]$_.MessageData.Message -eq 'Success' })[0]
 Assert-Equal (Get-OutputColor -Role Success) $resultValue.MessageData.ForegroundColor 'only the summary result receives the success color'
 

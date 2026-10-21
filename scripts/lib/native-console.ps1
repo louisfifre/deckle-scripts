@@ -11,8 +11,8 @@ function Write-CapturedProcessLine {
     Write-OutputFragment `
         -Text $Text `
         -Role Body `
-        -Tags @('Deckle.Output', 'Deckle.Native') `
-        -Metadata @{ DeckleStream = $Stream }
+        -Tags @('DeckleScripts.Output', 'DeckleScripts.Native') `
+        -Metadata @{ OutputStream = $Stream }
 }
 
 function Invoke-CapturedProcess {

@@ -60,7 +60,7 @@ function New-CatalogRows {
     for ($index = 0; $index -lt $Header.Actions.Count; $index++) {
         $action = $Header.Actions[$index]
         $rows.Add([pscustomobject][ordered]@{
-            PSTypeName = 'Deckle.ScriptDiscovery.ActionRow'
+            PSTypeName = 'DeckleScripts.ScriptDiscovery.ActionRow'
             ScriptPath = $Header.Path
             ScriptName = $Header.Name
             RelativePath = $RelativePath
@@ -88,7 +88,7 @@ function New-CatalogLevel {
 
     $name = Split-Path -Leaf $Path
     $level = [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.ScriptDiscovery.Level'
+        PSTypeName = 'DeckleScripts.ScriptDiscovery.Level'
         Path = $Path
         Name = $name
         RelativePath = Get-CatalogRelativePath -RootPath $RootPath -Path $Path

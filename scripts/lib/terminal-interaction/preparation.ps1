@@ -15,7 +15,7 @@ function New-TerminalSelectionOption {
     }
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.SelectionOption'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.SelectionOption'
         OptionId = $OptionId
         Label = $Label
         Value = $Value
@@ -77,7 +77,7 @@ function New-TerminalSelector {
     }
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.Selector'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.Selector'
         SelectorId = $SelectorId
         FilterLabel = $FilterLabel
         SelectionMode = $SelectionMode
@@ -101,7 +101,7 @@ function New-TerminalEffectiveScope {
     }
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.EffectiveScope'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.EffectiveScope'
         Revision = $Revision
         State = $State
         Lines = @($Lines)
@@ -117,7 +117,7 @@ function New-TerminalReview {
     )
 
     return [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.Review'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.Review'
         Revision = $Revision
         Lines = @($Lines)
     }
@@ -166,7 +166,7 @@ function New-TerminalPreparationView {
     }
 
     $descriptor = [pscustomobject][ordered]@{
-        PSTypeName = 'Deckle.TerminalInteraction.PreparationView'
+        PSTypeName = 'DeckleScripts.TerminalInteraction.PreparationView'
         Kind = 'Preparation'
         ViewId = $ViewId
         Banner = $Banner

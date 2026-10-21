@@ -1,4 +1,4 @@
-# Semantic presentation for Deckle script output.
+# Semantic presentation for script output.
 
 $script:OutputRoleColors = @{
     Body     = $null
@@ -42,7 +42,7 @@ function Write-OutputFragment {
         [ValidateSet('Body', 'Category', 'Heading', 'Action', 'Muted', 'Success', 'Warning', 'Error')]
         [string]$Role,
         [switch]$NoNewline,
-        [string[]]$Tags = @('Deckle.Output'),
+        [string[]]$Tags = @('DeckleScripts.Output'),
         [hashtable]$Metadata = @{}
     )
 
@@ -51,7 +51,7 @@ function Write-OutputFragment {
     $message.NoNewLine = [bool]$NoNewline
     $color = Get-OutputColor -Role $Role
     if ($null -ne $color) { $message.ForegroundColor = $color }
-    $message | Add-Member -NotePropertyName DeckleRole -NotePropertyValue $Role
+    $message | Add-Member -NotePropertyName OutputRole -NotePropertyValue $Role
     foreach ($entry in $Metadata.GetEnumerator()) {
         $message | Add-Member -NotePropertyName ([string]$entry.Key) -NotePropertyValue $entry.Value
     }
