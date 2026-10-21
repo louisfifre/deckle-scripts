@@ -1,13 +1,13 @@
 # Preview projection of a Script Discovery catalog into Action Menu descriptors.
 # It builds descriptors only; Actions still open the in-memory sample Execution.
 
-function ConvertTo-DecklePreviewIdPath {
+function ConvertTo-LauncherIdPath {
     param([AllowEmptyString()][string]$RelativePath)
 
     return ($RelativePath -replace '\.ps1$', '').Replace('/', '.')
 }
 
-function New-DecklePreviewQuitTarget {
+function New-LauncherQuitTarget {
     return New-TerminalTarget `
         -TargetId command.quit `
         -Label Quit `
@@ -16,14 +16,14 @@ function New-DecklePreviewQuitTarget {
         -PresentationRole Exit
 }
 
-function New-DecklePreviewDiscoveredActionTarget {
+function New-LauncherDiscoveredActionTarget {
     param(
         [Parameter(Mandatory)][object]$Row,
         [Parameter(Mandatory)][string]$Label,
         [string]$Variant
     )
 
-    $actionId = "$(ConvertTo-DecklePreviewIdPath -RelativePath $Row.RelativePath).$($Row.ActionIndex)"
+    $actionId = "$(ConvertTo-LauncherIdPath -RelativePath $Row.RelativePath).$($Row.ActionIndex)"
     $targetId = if ($Variant) { "action.$actionId.$($Variant.ToLowerInvariant())" } else { "action.$actionId" }
     $role = if ($Row.Danger) { 'Danger' } else { 'Action' }
     return New-TerminalTarget `
@@ -42,30 +42,30 @@ function New-DecklePreviewDiscoveredActionTarget {
         -PresentationRole $role
 }
 
-function ConvertTo-DecklePreviewDiscoveredItem {
+function ConvertTo-LauncherDiscoveredItem {
     param([Parameter(Mandatory)][object]$Row)
 
     $variants = @($Row.Variants)
     if ($variants.Count -eq 0) {
-        return New-DecklePreviewDiscoveredActionTarget -Row $Row -Label $Row.Label
+        return New-LauncherDiscoveredActionTarget -Row $Row -Label $Row.Label
     }
     $targets = foreach ($variant in $variants) {
-        New-DecklePreviewDiscoveredActionTarget -Row $Row -Label $variant.Value -Variant $variant.Value
+        New-LauncherDiscoveredActionTarget -Row $Row -Label $variant.Value -Variant $variant.Value
     }
     return New-TerminalActionRow -Label $Row.Label -Variants @($targets)
 }
 
-function New-DecklePreviewDiscoveredAccessTarget {
+function New-LauncherDiscoveredAccessTarget {
     param([Parameter(Mandatory)][object]$Level)
 
     return New-TerminalTarget `
-        -TargetId "access.$(ConvertTo-DecklePreviewIdPath -RelativePath $Level.RelativePath)" `
+        -TargetId "access.$(ConvertTo-LauncherIdPath -RelativePath $Level.RelativePath)" `
         -Label ($Level.Label + [char]0x2026) `
         -IntentKind Access `
         -Payload ([pscustomobject]@{ AccessId = $Level.RelativePath })
 }
 
-function ConvertTo-DecklePreviewDiscoveredView {
+function ConvertTo-LauncherDiscoveredView {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][object]$Level,
@@ -76,13 +76,13 @@ function ConvertTo-DecklePreviewDiscoveredView {
 
     $sections = [System.Collections.Generic.List[object]]::new()
     foreach ($catalogSection in $Level.Sections) {
-        $items = @(foreach ($row in $catalogSection.Rows) { ConvertTo-DecklePreviewDiscoveredItem -Row $row })
+        $items = @(foreach ($row in $catalogSection.Rows) { ConvertTo-LauncherDiscoveredItem -Row $row })
         $sections.Add((New-TerminalSection -Label $catalogSection.Label -Items $items))
     }
 
     $closingItems = [System.Collections.Generic.List[object]]::new()
-    foreach ($access in $Level.Accesses) { $closingItems.Add((New-DecklePreviewDiscoveredAccessTarget -Level $access)) }
-    if ($IsRoot) { $closingItems.Add((New-DecklePreviewQuitTarget)) }
+    foreach ($access in $Level.Accesses) { $closingItems.Add((New-LauncherDiscoveredAccessTarget -Level $access)) }
+    if ($IsRoot) { $closingItems.Add((New-LauncherQuitTarget)) }
     if ($closingItems.Count -gt 0) {
         $sections.Add((New-TerminalSection -Label $null -Items @($closingItems)))
     }
@@ -96,7 +96,7 @@ function ConvertTo-DecklePreviewDiscoveredView {
         $sections.Add((New-TerminalSection -Label $null -Items @($empty)))
     }
 
-    $idPath = ConvertTo-DecklePreviewIdPath -RelativePath $Level.RelativePath
+    $idPath = ConvertTo-LauncherIdPath -RelativePath $Level.RelativePath
     $viewId = if ($IsRoot -or $idPath -eq '') { 'menu.discovered' } else { "menu.discovered.$idPath" }
     $parameters = @{
         ViewId = $viewId
@@ -105,12 +105,12 @@ function ConvertTo-DecklePreviewDiscoveredView {
     }
     if (-not $IsRoot) {
         $parameters.Context = $Level.Label
-        $parameters.BackTarget = if ($null -ne $BackTarget) { $BackTarget } else { New-DecklePreviewBackTarget }
+        $parameters.BackTarget = if ($null -ne $BackTarget) { $BackTarget } else { New-LauncherBackTarget }
     }
     return New-TerminalActionMenuView @parameters
 }
 
-function Resolve-DecklePreviewDiscoveredAccess {
+function Resolve-LauncherDiscoveredAccess {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][object]$Catalog,
@@ -119,22 +119,22 @@ function Resolve-DecklePreviewDiscoveredAccess {
 
     if ($Catalog.RelativePath -eq $AccessId) { return $Catalog }
     foreach ($access in $Catalog.Accesses) {
-        $found = Resolve-DecklePreviewDiscoveredAccess -Catalog $access -AccessId $AccessId
+        $found = Resolve-LauncherDiscoveredAccess -Catalog $access -AccessId $AccessId
         if ($null -ne $found) { return $found }
     }
     return $null
 }
 
-function Get-DecklePreviewDiscoveredOwnerId {
+function Get-LauncherDiscoveredOwnerId {
     param([Parameter(Mandatory)][AllowEmptyString()][string]$RelativePath)
 
     # The owning Action Menu of a script is the View of its folder.
     $separator = $RelativePath.LastIndexOf('/')
     if ($separator -lt 0) { return 'menu.discovered' }
-    return "menu.discovered.$(ConvertTo-DecklePreviewIdPath -RelativePath $RelativePath.Substring(0, $separator))"
+    return "menu.discovered.$(ConvertTo-LauncherIdPath -RelativePath $RelativePath.Substring(0, $separator))"
 }
 
-function New-DecklePreviewConfirmationView {
+function New-LauncherConfirmationView {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][object]$Action,
@@ -169,17 +169,17 @@ function New-DecklePreviewConfirmationView {
             'Nothing has run yet.'
         ) `
         -Targets @($keep, $proceed) `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -OwnerActionMenuId $OwnerActionMenuId
 }
 
-function Test-DecklePreviewConfirmationView {
+function Test-LauncherConfirmationView {
     param([Parameter(Mandatory)][object]$View)
 
     return $View.Kind -eq 'Content' -and $View.ViewId.StartsWith('confirmation.', [StringComparison]::Ordinal)
 }
 
-function Get-DecklePreviewFirstTargetId {
+function Get-LauncherFirstTargetId {
     param([Parameter(Mandatory)][object]$View)
 
     $first = $View.Sections[0].Items[0]

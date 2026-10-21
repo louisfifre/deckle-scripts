@@ -3,9 +3,9 @@ $ScriptsDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $LibDir = Join-Path $ScriptsDir 'lib'
 $RepositoryRoot = Split-Path -Parent $ScriptsDir
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
-. (Join-Path $LibDir 'deckle-preview\catalog.ps1')
-. (Join-Path $LibDir 'deckle-preview\statistics-preparation.ps1')
-. (Join-Path $LibDir 'deckle-preview\flows.ps1')
+. (Join-Path $LibDir 'launcher\catalog.ps1')
+. (Join-Path $LibDir 'launcher\statistics-preparation.ps1')
+. (Join-Path $LibDir 'launcher\flows.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
@@ -15,8 +15,8 @@ function Assert-True([bool]$Condition, [string]$Case) {
     if (-not $Condition) { throw "${Case}: condition was false" }
 }
 
-$root = Get-DecklePreviewRootView
-$accessDecision = Resolve-DecklePreviewIntent `
+$root = Get-LauncherRootView
+$accessDecision = Resolve-LauncherIntent `
     -Request ([pscustomobject]@{
         TargetId = 'access.project'
         IntentKind = 'Access'
@@ -28,7 +28,7 @@ Assert-Equal OpenView $accessDecision.Kind 'Access opens another View'
 Assert-Equal menu.project $accessDecision.View.ViewId 'Project Access opens the Project Action Menu'
 Assert-Equal ActionMenu $accessDecision.View.Kind 'Access destination remains an Action Menu composition'
 
-$actionDecision = Resolve-DecklePreviewIntent `
+$actionDecision = Resolve-LauncherIntent `
     -Request ([pscustomobject]@{
         TargetId = 'action.build.release'
         IntentKind = 'Action'
@@ -41,9 +41,9 @@ Assert-Equal Execution $actionDecision.View.Kind 'Action destination is an Execu
 Assert-Equal menu.root $actionDecision.View.OwnerActionMenuId 'Execution remembers its owning Action Menu'
 Assert-True (@($actionDecision.View.JournalLines | Where-Object { $_ -match 'No repository command was started' }).Count -eq 1) 'preview Execution explicitly records that it is safe'
 
-$maintenance = Get-DecklePreviewMaintenanceView
+$maintenance = Get-LauncherMaintenanceView
 $statisticsTarget = @($maintenance.Sections[0].Items | Where-Object { $_.TargetId -eq 'action.repository-stats' })[0]
-$preparationDecision = Resolve-DecklePreviewIntent `
+$preparationDecision = Resolve-LauncherIntent `
     -Request ([pscustomobject]@{
         TargetId = $statisticsTarget.TargetId
         IntentKind = $statisticsTarget.IntentKind
@@ -56,7 +56,7 @@ Assert-Equal OpenView $preparationDecision.Kind 'statistics Action opens Prepara
 Assert-Equal Preparation $preparationDecision.View.Kind 'material statistics inputs stay in one Preparation View'
 
 $scopeTarget = @($preparationDecision.View.Selectors[0].Targets | Where-Object { $_.Payload.Value -eq 'src' })[0]
-$adjustmentDecision = Resolve-DecklePreviewIntent `
+$adjustmentDecision = Resolve-LauncherIntent `
     -Request ([pscustomobject]@{
         TargetId = $scopeTarget.TargetId
         IntentKind = $scopeTarget.IntentKind
@@ -73,7 +73,7 @@ Assert-Equal $false $adjustmentDecision.View.ConfirmationTarget.Payload.Selectio
 Assert-Equal $false ($adjustmentDecision.View.ConfirmationTarget.Payload.Selections.Scope.Paths -contains 'src') 'the Action request carries every selected path rather than one ScopePath'
 
 $confirmation = $adjustmentDecision.View.ConfirmationTarget
-$confirmationDecision = Resolve-DecklePreviewIntent `
+$confirmationDecision = Resolve-LauncherIntent `
     -Request ([pscustomobject]@{
         TargetId = $confirmation.TargetId
         IntentKind = $confirmation.IntentKind
@@ -103,7 +103,7 @@ $resolvedOwner = & $module {
 } $root $actionDecision.View
 Assert-Equal menu.root $resolvedOwner.ViewId 'the interaction core resolves a child View owner from the retained stack'
 
-$quitDecision = Resolve-DecklePreviewIntent `
+$quitDecision = Resolve-LauncherIntent `
     -Request ([pscustomobject]@{ TargetId = 'command.quit'; IntentKind = 'Command'; Payload = $null; SourceViewId = 'menu.root' }) `
     -SourceView $root
 Assert-Equal Exit $quitDecision.Kind 'Quit requests launcher exit'

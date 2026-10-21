@@ -2,18 +2,18 @@ $ErrorActionPreference = 'Stop'
 $ScriptsDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $LibDir = Join-Path $ScriptsDir 'lib'
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
-. (Join-Path $LibDir 'deckle-preview\catalog.ps1')
+. (Join-Path $LibDir 'launcher\catalog.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
 }
 
-$root = Get-DecklePreviewRootView
+$root = Get-LauncherRootView
 $module = Get-Module terminal-interaction
 $rootEscape = & $module { param($view) Get-TerminalEscapeDecision -View $view -ViewDepth 1 } $root
 Assert-Equal Exit $rootEscape.Kind 'Escape exits from the root Action Menu'
 
-$project = Get-DecklePreviewProjectView
+$project = Get-LauncherProjectView
 $projectEscape = & $module { param($view) Get-TerminalEscapeDecision -View $view -ViewDepth 2 } $project
 Assert-Equal Back $projectEscape.Kind 'Escape returns by one View when a caller exists'
 

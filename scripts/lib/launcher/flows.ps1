@@ -1,6 +1,6 @@
 # Preview-only intent handling. No repository command is invoked here.
 
-function New-DecklePreviewExecution {
+function New-LauncherExecution {
     param(
         [Parameter(Mandatory)][object]$Action,
         [Parameter(Mandatory)][string]$OwnerActionMenuId
@@ -35,11 +35,11 @@ function New-DecklePreviewExecution {
         -JournalLines @($journal) `
         -TrackingSteps $tracking `
         -Result 'Preview only; no repository changes.' `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -OwnerActionMenuId $OwnerActionMenuId
 }
 
-function Resolve-DecklePreviewIntent {
+function Resolve-LauncherIntent {
     param(
         [Parameter(Mandatory)][object]$Request,
         [Parameter(Mandatory)][object]$SourceView,
@@ -52,13 +52,13 @@ function Resolve-DecklePreviewIntent {
     if ($Request.IntentKind -eq 'Access') {
         return [pscustomobject]@{
             Kind = 'OpenView'
-            View = Get-DecklePreviewAccessView -AccessId $Request.Payload.AccessId
+            View = Get-LauncherAccessView -AccessId $Request.Payload.AccessId
         }
     }
     if ($Request.IntentKind -eq 'Adjust' -and $SourceView.Kind -eq 'Preparation') {
         return [pscustomobject]@{
             Kind = 'UpdateView'
-            View = Update-DecklePreviewStatisticsPreparation -View $SourceView -Adjustment $Request.Payload
+            View = Update-LauncherStatisticsPreparation -View $SourceView -Adjustment $Request.Payload
         }
     }
     if ($Request.IntentKind -eq 'Action') {
@@ -66,7 +66,7 @@ function Resolve-DecklePreviewIntent {
         if ($SourceView.Kind -eq 'ActionMenu' -and $Request.Payload.ActionId -eq 'repository-stats') {
             return [pscustomobject]@{
                 Kind = 'OpenView'
-                View = New-DecklePreviewStatisticsPreparation `
+                View = New-LauncherStatisticsPreparation `
                     -RepositoryRoot $RepositoryRoot `
                     -OwnerActionMenuId $owner
             }
@@ -77,45 +77,45 @@ function Resolve-DecklePreviewIntent {
             }
             return [pscustomobject]@{
                 Kind = 'ReplaceView'
-                View = New-DecklePreviewExecution -Action $Request.Payload -OwnerActionMenuId $owner
+                View = New-LauncherExecution -Action $Request.Payload -OwnerActionMenuId $owner
             }
         }
         return [pscustomobject]@{
             Kind = 'OpenView'
-            View = New-DecklePreviewExecution -Action $Request.Payload -OwnerActionMenuId $owner
+            View = New-LauncherExecution -Action $Request.Payload -OwnerActionMenuId $owner
         }
     }
     return [pscustomobject]@{ Kind = 'Stay' }
 }
 
-function Get-DecklePreviewSnapshotView {
+function Get-LauncherSnapshotView {
     param(
         [Parameter(Mandatory)][ValidateSet('Menu', 'Project', 'Preparation', 'Execution')][string]$Name,
         [string]$RepositoryRoot
     )
 
     switch ($Name) {
-        'Menu' { return Get-DecklePreviewRootView }
-        'Project' { return Get-DecklePreviewProjectView }
-        'Preparation' { return New-DecklePreviewStatisticsPreparation -RepositoryRoot $RepositoryRoot }
+        'Menu' { return Get-LauncherRootView }
+        'Project' { return Get-LauncherProjectView }
+        'Preparation' { return New-LauncherStatisticsPreparation -RepositoryRoot $RepositoryRoot }
         'Execution' {
-            return New-DecklePreviewExecution `
+            return New-LauncherExecution `
                 -Action ([pscustomobject]@{ ActionId = 'build'; Variant = 'Release'; Label = 'Build' }) `
                 -OwnerActionMenuId menu.root
         }
     }
 }
 
-function Get-DecklePreviewOwnerActionMenu {
+function Get-LauncherOwnerActionMenu {
     param([Parameter(Mandatory)][object]$View)
 
     if ($View.Kind -eq 'ActionMenu') { return $View }
     switch ($View.OwnerActionMenuId) {
-        'menu.root' { return Get-DecklePreviewRootView }
-        'menu.project' { return Get-DecklePreviewProjectView }
-        'menu.release' { return Get-DecklePreviewReleaseView }
-        'menu.maintenance' { return Get-DecklePreviewMaintenanceView }
-        'menu.setup' { return Get-DecklePreviewSetupView }
+        'menu.root' { return Get-LauncherRootView }
+        'menu.project' { return Get-LauncherProjectView }
+        'menu.release' { return Get-LauncherReleaseView }
+        'menu.maintenance' { return Get-LauncherMaintenanceView }
+        'menu.setup' { return Get-LauncherSetupView }
         default { throw "Unknown Deckle preview Action Menu '$($View.OwnerActionMenuId)'." }
     }
 }

@@ -13,7 +13,7 @@ function Assert-True([bool]$Condition, [string]$Case) {
 }
 
 function Get-FixtureHeader([string]$RelativePath) {
-    return Read-DeckleScriptHeader -Path (Join-Path $FixtureDir $RelativePath)
+    return Read-ScriptHeader -Path (Join-Path $FixtureDir $RelativePath)
 }
 
 # Discovery reads scripts through the parser only; a script body that writes a
@@ -21,7 +21,7 @@ function Get-FixtureHeader([string]$RelativePath) {
 $marker = Join-Path $FixtureDir 'no-header.executed'
 if (Test-Path -LiteralPath $marker) { Remove-Item -LiteralPath $marker -Force }
 
-$pairs = @(Read-DeckleKeyValueLines -Lines @(
+$pairs = @(Read-KeyValueLines -Lines @(
     'action: First | -One'
     'Note without a colon is ignored'
     'Action: Second'
@@ -36,7 +36,7 @@ Assert-Equal 'action' $pairs[1].Key 'a repeated key stays a separate pair and ke
 Assert-Equal 'Second' $pairs[1].Value 'the repeated key keeps its own value'
 Assert-Equal 'folded across two lines' $pairs[2].Value 'a block scalar folds its lines into one value'
 Assert-Equal 'kept inside' $pairs[3].Value 'surrounding quotes are stripped'
-$table = ConvertTo-DeckleKeyValueTable -Pairs $pairs
+$table = ConvertTo-KeyValueTable -Pairs $pairs
 Assert-Equal 'Second' $table['action'] 'the table keeps the last value of a repeated key'
 
 $scratch = Join-Path ([IO.Path]::GetTempPath()) "script-discovery-$([guid]::NewGuid())"
@@ -44,18 +44,18 @@ $null = New-Item -ItemType Directory -Path $scratch
 try {
     $noBlock = Join-Path $scratch 'no-block.md'
     Set-Content -LiteralPath $noBlock -Value @('# Title', '', 'name: not front matter') -Encoding utf8NoBOM
-    Assert-Equal $null (Get-DeckleMarkdownFrontMatter -Path $noBlock) 'a document without a leading block has no front matter'
+    Assert-Equal $null (Get-MarkdownFrontMatter -Path $noBlock) 'a document without a leading block has no front matter'
     $unclosed = Join-Path $scratch 'unclosed.md'
     Set-Content -LiteralPath $unclosed -Value @('---', 'name: Open', 'body') -Encoding utf8NoBOM
-    Assert-Equal $null (Get-DeckleMarkdownFrontMatter -Path $unclosed) 'a block without its closing line has no front matter'
+    Assert-Equal $null (Get-MarkdownFrontMatter -Path $unclosed) 'a block without its closing line has no front matter'
     $empty = Join-Path $scratch 'empty.md'
     Set-Content -LiteralPath $empty -Value @('---', 'plain text', '---') -Encoding utf8NoBOM
-    Assert-Equal $null (Get-DeckleMarkdownFrontMatter -Path $empty) 'a block without any field has no front matter'
-    Assert-Equal $null (Get-DeckleMarkdownFrontMatter -Path (Join-Path $scratch 'missing.md')) 'a missing file has no front matter'
+    Assert-Equal $null (Get-MarkdownFrontMatter -Path $empty) 'a block without any field has no front matter'
+    Assert-Equal $null (Get-MarkdownFrontMatter -Path (Join-Path $scratch 'missing.md')) 'a missing file has no front matter'
 } finally {
     Remove-Item -LiteralPath $scratch -Recurse -Force
 }
-$toolsFrontMatter = Get-DeckleMarkdownFrontMatter -Path (Join-Path $FixtureDir 'tools\README.md')
+$toolsFrontMatter = Get-MarkdownFrontMatter -Path (Join-Path $FixtureDir 'tools\README.md')
 Assert-Equal 'Tooling' $toolsFrontMatter['name'] 'a folder README names its level'
 Assert-Equal '2' $toolsFrontMatter['order'] 'front matter values stay text'
 
@@ -113,7 +113,7 @@ Assert-Equal Described $arraySet.Status 'an array ValidateSet keeps the Header v
 Assert-Equal $null $arraySet.VariantParameter 'an array ValidateSet is a Filter, not a Variant axis'
 Assert-Equal 0 @($arraySet.Variants).Count 'an array ValidateSet gives no Variants'
 
-$catalog = Get-DeckleScriptCatalog -Path $FixtureDir
+$catalog = Get-ScriptCatalog -Path $FixtureDir
 Assert-Equal '' $catalog.RelativePath 'the root level has an empty relative path'
 $sections = @($catalog.Sections)
 Assert-Equal 3 $sections.Count 'untitled group, Build and Care'
@@ -139,9 +139,9 @@ Assert-Equal 'tools/deep/zeta.ps1' $accesses[0].Accesses[0].Sections[0].Rows[0].
 
 $hiddenNames = (@($catalog.Hidden) | ForEach-Object RelativePath) -join ','
 Assert-Equal 'dot-word.ps1,glued-requires.ps1,no-header.ps1,two-axes.ps1' $hiddenNames 'the root level lists the scripts it leaves out'
-Assert-Equal 4 @(Get-DeckleCatalogHiddenScripts -Catalog $catalog).Count 'hidden scripts flatten across levels'
+Assert-Equal 4 @(Get-CatalogHiddenScripts -Catalog $catalog).Count 'hidden scripts flatten across levels'
 Assert-Equal 'InvalidHeader' (@($catalog.Hidden | Where-Object RelativePath -eq 'two-axes.ps1')[0].Status) 'hidden entries keep their status'
-Assert-Equal 10 @(Get-DeckleCatalogRows -Catalog $catalog).Count 'every Action Row is reachable depth-first'
+Assert-Equal 10 @(Get-CatalogRows -Catalog $catalog).Count 'every Action Row is reachable depth-first'
 
 Assert-True (-not (Test-Path -LiteralPath $marker)) 'discovery never executes a script'
 

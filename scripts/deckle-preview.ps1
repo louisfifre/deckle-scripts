@@ -25,46 +25,46 @@ $PreviewBanner = 'Deckle Interaction Preview'
 
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
 Import-Module (Join-Path $LibDir 'script-discovery.psm1') -Force
-. (Join-Path $LibDir 'deckle-preview\catalog.ps1')
-. (Join-Path $LibDir 'deckle-preview\discovered-catalog.ps1')
-. (Join-Path $LibDir 'deckle-preview\statistics-preparation.ps1')
-. (Join-Path $LibDir 'deckle-preview\flows.ps1')
+. (Join-Path $LibDir 'launcher\catalog.ps1')
+. (Join-Path $LibDir 'launcher\discovered-catalog.ps1')
+. (Join-Path $LibDir 'launcher\statistics-preparation.ps1')
+. (Join-Path $LibDir 'launcher\flows.ps1')
 
 # The discovered catalog is read only when asked for, so the hand-written
 # preview keeps its exact behavior and cost.
 $DiscoveredCatalog = $null
 if ($Discovered -or $Snapshot -in @('Catalog', 'Confirmation')) {
-    $DiscoveredCatalog = Get-DeckleScriptCatalog -Path (Join-Path $ScriptDir 'commands')
+    $DiscoveredCatalog = Get-ScriptCatalog -Path (Join-Path $ScriptDir 'commands')
 }
 
 # The Confirmation snapshot shows the step for the first discovered Action
 # that declares a confirmation sentence, with its folder's menu as owner.
-function Get-DecklePreviewConfirmationSnapshot {
-    $row = @(Get-DeckleCatalogRows -Catalog $DiscoveredCatalog | Where-Object { $_.Confirmation }) | Select-Object -First 1
+function Get-LauncherConfirmationSnapshot {
+    $row = @(Get-CatalogRows -Catalog $DiscoveredCatalog | Where-Object { $_.Confirmation }) | Select-Object -First 1
     if ($null -eq $row) { throw 'No discovered Action declares a confirmation sentence.' }
-    $item = ConvertTo-DecklePreviewDiscoveredItem -Row $row
+    $item = ConvertTo-LauncherDiscoveredItem -Row $row
     $target = if ($item.PSObject.Properties['Kind'] -and $item.Kind -eq 'ActionRow') { $item.Variants[0] } else { $item }
     $levelPath = if ($row.RelativePath.Contains('/')) { $row.RelativePath.Substring(0, $row.RelativePath.LastIndexOf('/')) } else { '' }
-    $level = Resolve-DecklePreviewDiscoveredAccess -Catalog $DiscoveredCatalog -AccessId $levelPath
-    $owner = ConvertTo-DecklePreviewDiscoveredView -Level $level -Banner $PreviewBanner -IsRoot:($levelPath -eq '')
+    $level = Resolve-LauncherDiscoveredAccess -Catalog $DiscoveredCatalog -AccessId $levelPath
+    $owner = ConvertTo-LauncherDiscoveredView -Level $level -Banner $PreviewBanner -IsRoot:($levelPath -eq '')
     return [pscustomobject]@{
-        View = New-DecklePreviewConfirmationView -Action $target.Payload -Banner $PreviewBanner -OwnerActionMenuId $owner.ViewId
+        View = New-LauncherConfirmationView -Action $target.Payload -Banner $PreviewBanner -OwnerActionMenuId $owner.ViewId
         Owner = $owner
     }
 }
 
 if ($HostSmokeTest) {
     $smokeView = if ($Snapshot -eq 'Catalog') {
-        ConvertTo-DecklePreviewDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot
+        ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot
     } elseif ($Snapshot) {
-        Get-DecklePreviewSnapshotView -Name $Snapshot -RepositoryRoot $RepositoryRoot
+        Get-LauncherSnapshotView -Name $Snapshot -RepositoryRoot $RepositoryRoot
     } else {
-        Get-DecklePreviewRootView
+        Get-LauncherRootView
     }
-    $smokeOwnerActionMenu = if ($Snapshot -eq 'Catalog') { $smokeView } else { Get-DecklePreviewOwnerActionMenu -View $smokeView }
+    $smokeOwnerActionMenu = if ($Snapshot -eq 'Catalog') { $smokeView } else { Get-LauncherOwnerActionMenu -View $smokeView }
     $smokeFocus = switch ($Snapshot) {
         'Preparation' { $smokeView.DefaultTargetId }
-        'Catalog' { Get-DecklePreviewFirstTargetId -View $smokeView }
+        'Catalog' { Get-LauncherFirstTargetId -View $smokeView }
         default { 'action.launch.release' }
     }
     $module = Get-Module terminal-interaction
@@ -96,23 +96,23 @@ if ($HostSmokeTest) {
 }
 
 if ($Snapshot) {
-    $confirmationSnapshot = if ($Snapshot -eq 'Confirmation') { Get-DecklePreviewConfirmationSnapshot } else { $null }
+    $confirmationSnapshot = if ($Snapshot -eq 'Confirmation') { Get-LauncherConfirmationSnapshot } else { $null }
     $view = switch ($Snapshot) {
-        'Catalog' { ConvertTo-DecklePreviewDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot }
+        'Catalog' { ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot }
         'Confirmation' { $confirmationSnapshot.View }
-        default { Get-DecklePreviewSnapshotView -Name $Snapshot -RepositoryRoot $RepositoryRoot }
+        default { Get-LauncherSnapshotView -Name $Snapshot -RepositoryRoot $RepositoryRoot }
     }
     $ownerActionMenu = switch ($Snapshot) {
         'Catalog' { $view }
         'Confirmation' { $confirmationSnapshot.Owner }
-        default { Get-DecklePreviewOwnerActionMenu -View $view }
+        default { Get-LauncherOwnerActionMenu -View $view }
     }
     $focus = switch ($Snapshot) {
         'Menu' { 'action.launch.release' }
         'Project' { 'navigation.back' }
         'Preparation' { $view.DefaultTargetId }
         'Execution' { 'navigation.back' }
-        'Catalog' { Get-DecklePreviewFirstTargetId -View $view }
+        'Catalog' { Get-LauncherFirstTargetId -View $view }
         'Confirmation' { $view.Targets[0].TargetId }
     }
     $frame = Get-TerminalInteractionFrame `
@@ -129,18 +129,18 @@ if ($Snapshot) {
 }
 
 $rootView = if ($Discovered) {
-    ConvertTo-DecklePreviewDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot
+    ConvertTo-LauncherDiscoveredView -Level $DiscoveredCatalog -Banner $PreviewBanner -IsRoot
 } else {
-    Get-DecklePreviewRootView
+    Get-LauncherRootView
 }
 Start-TerminalInteraction -RootView $rootView -Palette $Palette -IntentHandler {
     param($request, $sourceView)
     if ($Discovered -and $request.IntentKind -eq 'Access') {
-        $level = Resolve-DecklePreviewDiscoveredAccess -Catalog $DiscoveredCatalog -AccessId $request.Payload.AccessId
+        $level = Resolve-LauncherDiscoveredAccess -Catalog $DiscoveredCatalog -AccessId $request.Payload.AccessId
         if ($null -eq $level) { throw "Unknown discovered Access '$($request.Payload.AccessId)'." }
         return [pscustomobject]@{
             Kind = 'OpenView'
-            View = ConvertTo-DecklePreviewDiscoveredView -Level $level -Banner $PreviewBanner
+            View = ConvertTo-LauncherDiscoveredView -Level $level -Banner $PreviewBanner
         }
     }
     if ($Discovered -and $request.IntentKind -eq 'Action') {
@@ -150,17 +150,17 @@ Start-TerminalInteraction -RootView $rootView -Palette $Palette -IntentHandler {
         if ($sourceView.Kind -eq 'ActionMenu' -and $request.Payload.Confirmation) {
             return [pscustomobject]@{
                 Kind = 'OpenView'
-                View = New-DecklePreviewConfirmationView -Action $request.Payload -Banner $PreviewBanner -OwnerActionMenuId $sourceView.ViewId
+                View = New-LauncherConfirmationView -Action $request.Payload -Banner $PreviewBanner -OwnerActionMenuId $sourceView.ViewId
             }
         }
-        if (Test-DecklePreviewConfirmationView -View $sourceView) {
+        if (Test-LauncherConfirmationView -View $sourceView) {
             return [pscustomobject]@{
                 Kind = 'ReplaceView'
-                View = New-DecklePreviewExecution -Action $request.Payload -OwnerActionMenuId $sourceView.OwnerActionMenuId
+                View = New-LauncherExecution -Action $request.Payload -OwnerActionMenuId $sourceView.OwnerActionMenuId
             }
         }
     }
-    Resolve-DecklePreviewIntent `
+    Resolve-LauncherIntent `
         -Request $request `
         -SourceView $sourceView `
         -RepositoryRoot $RepositoryRoot

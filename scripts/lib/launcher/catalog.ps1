@@ -1,6 +1,6 @@
 # Deckle-specific descriptors for the parallel interaction preview.
 
-function New-DecklePreviewBackTarget {
+function New-LauncherBackTarget {
     return New-TerminalTarget `
         -TargetId 'navigation.back' `
         -Label '< Back' `
@@ -9,7 +9,7 @@ function New-DecklePreviewBackTarget {
         -PresentationRole Navigation
 }
 
-function New-DecklePreviewActionTarget {
+function New-LauncherActionTarget {
     param(
         [Parameter(Mandatory)][string]$ActionId,
         [Parameter(Mandatory)][string]$Label,
@@ -26,7 +26,7 @@ function New-DecklePreviewActionTarget {
         -PresentationRole $Role
 }
 
-function New-DecklePreviewAccessTarget {
+function New-LauncherAccessTarget {
     param(
         [Parameter(Mandatory)][string]$AccessId,
         [Parameter(Mandatory)][string]$Label
@@ -39,18 +39,18 @@ function New-DecklePreviewAccessTarget {
         -Payload ([pscustomobject]@{ AccessId = $AccessId })
 }
 
-function Get-DecklePreviewRootView {
-    $release = New-DecklePreviewActionTarget -ActionId launch -Label Release -Variant Release
-    $debug = New-DecklePreviewActionTarget -ActionId launch -Label Debug -Variant Debug
-    $buildRunRelease = New-DecklePreviewActionTarget -ActionId build-run -Label Release -Variant Release
-    $buildRunDebug = New-DecklePreviewActionTarget -ActionId build-run -Label Debug -Variant Debug
-    $buildRelease = New-DecklePreviewActionTarget -ActionId build -Label Release -Variant Release
-    $buildDebug = New-DecklePreviewActionTarget -ActionId build -Label Debug -Variant Debug
+function Get-LauncherRootView {
+    $release = New-LauncherActionTarget -ActionId launch -Label Release -Variant Release
+    $debug = New-LauncherActionTarget -ActionId launch -Label Debug -Variant Debug
+    $buildRunRelease = New-LauncherActionTarget -ActionId build-run -Label Release -Variant Release
+    $buildRunDebug = New-LauncherActionTarget -ActionId build-run -Label Debug -Variant Debug
+    $buildRelease = New-LauncherActionTarget -ActionId build -Label Release -Variant Release
+    $buildDebug = New-LauncherActionTarget -ActionId build -Label Debug -Variant Debug
 
-    $project = New-DecklePreviewAccessTarget -AccessId project -Label Project
-    $releaseAccess = New-DecklePreviewAccessTarget -AccessId release -Label Release
-    $maintenance = New-DecklePreviewAccessTarget -AccessId maintenance -Label Maintenance
-    $setup = New-DecklePreviewAccessTarget -AccessId setup -Label Setup
+    $project = New-LauncherAccessTarget -AccessId project -Label Project
+    $releaseAccess = New-LauncherAccessTarget -AccessId release -Label Release
+    $maintenance = New-LauncherAccessTarget -AccessId maintenance -Label Maintenance
+    $setup = New-LauncherAccessTarget -AccessId setup -Label Setup
     $quit = New-TerminalTarget `
         -TargetId command.quit `
         -Label Quit `
@@ -69,88 +69,88 @@ function Get-DecklePreviewRootView {
     return New-TerminalActionMenuView -ViewId menu.root -Banner 'Deckle Interaction Preview' -Sections $sections
 }
 
-function Get-DecklePreviewProjectView {
+function Get-LauncherProjectView {
     return New-TerminalActionMenuView `
         -ViewId menu.project `
         -Banner 'Deckle Interaction Preview' `
         -Context Project `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -Sections @(
             New-TerminalSection -Label Docs -Items @(
-                New-DecklePreviewActionTarget -ActionId readme-stats -Label 'README pulse'
-                New-DecklePreviewActionTarget -ActionId changelog -Label Changelog
+                New-LauncherActionTarget -ActionId readme-stats -Label 'README pulse'
+                New-LauncherActionTarget -ActionId changelog -Label Changelog
             )
             New-TerminalSection -Label Version -Items @(
-                New-DecklePreviewActionTarget -ActionId record-version -Label 'Record version'
+                New-LauncherActionTarget -ActionId record-version -Label 'Record version'
             )
         )
 }
 
-function Get-DecklePreviewReleaseView {
+function Get-LauncherReleaseView {
     return New-TerminalActionMenuView `
         -ViewId menu.release `
         -Banner 'Deckle Interaction Preview' `
         -Context Release `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -Sections @(
             New-TerminalSection -Label Publish -Items @(
-                New-DecklePreviewActionTarget -ActionId publish-app -Label App
-                New-DecklePreviewActionTarget -ActionId publish-native -Label 'Native runtime'
+                New-LauncherActionTarget -ActionId publish-app -Label App
+                New-LauncherActionTarget -ActionId publish-native -Label 'Native runtime'
             )
             New-TerminalSection -Label Prepare -Items @(
-                New-DecklePreviewActionTarget -ActionId prepare-app -Label 'App artifacts'
-                New-DecklePreviewActionTarget -ActionId prepare-native -Label 'Native runtime'
+                New-LauncherActionTarget -ActionId prepare-app -Label 'App artifacts'
+                New-LauncherActionTarget -ActionId prepare-native -Label 'Native runtime'
             )
         )
 }
 
-function Get-DecklePreviewMaintenanceView {
+function Get-LauncherMaintenanceView {
     return New-TerminalActionMenuView `
         -ViewId menu.maintenance `
         -Banner 'Deckle Interaction Preview' `
         -Context Maintenance `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -Sections @(
             New-TerminalSection -Label Statistics -Items @(
-                New-DecklePreviewActionTarget -ActionId repository-stats -Label 'Repository statistics'
-                New-DecklePreviewActionTarget -ActionId context-stats -Label 'Context statistics'
+                New-LauncherActionTarget -ActionId repository-stats -Label 'Repository statistics'
+                New-LauncherActionTarget -ActionId context-stats -Label 'Context statistics'
             )
             New-TerminalSection -Label Cleanup -Items @(
-                New-DecklePreviewActionTarget -ActionId clean -Label 'Clean build outputs'
-                New-DecklePreviewActionTarget -ActionId build-servers -Label 'Stop .NET build servers'
+                New-LauncherActionTarget -ActionId clean -Label 'Clean build outputs'
+                New-LauncherActionTarget -ActionId build-servers -Label 'Stop .NET build servers'
             )
             New-TerminalSection -Label 'AI sessions' -Items @(
-                New-DecklePreviewActionTarget -ActionId inspect-agent-state -Label 'Inspect AI session state'
-                New-DecklePreviewActionTarget -ActionId reset-agent-state -Label 'Reset AI session state' -Role Danger
+                New-LauncherActionTarget -ActionId inspect-agent-state -Label 'Inspect AI session state'
+                New-LauncherActionTarget -ActionId reset-agent-state -Label 'Reset AI session state' -Role Danger
             )
         )
 }
 
-function Get-DecklePreviewSetupView {
+function Get-LauncherSetupView {
     return New-TerminalActionMenuView `
         -ViewId menu.setup `
         -Banner 'Deckle Interaction Preview' `
         -Context Setup `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -Sections @(
             New-TerminalSection -Label Machine -Items @(
-                New-DecklePreviewActionTarget -ActionId bootstrap -Label Bootstrap
-                New-DecklePreviewActionTarget -ActionId assets -Label 'Runtime assets'
+                New-LauncherActionTarget -ActionId bootstrap -Label Bootstrap
+                New-LauncherActionTarget -ActionId assets -Label 'Runtime assets'
             )
             New-TerminalSection -Label Repo -Items @(
-                New-DecklePreviewActionTarget -ActionId hooks -Label 'Install git hooks'
+                New-LauncherActionTarget -ActionId hooks -Label 'Install git hooks'
             )
         )
 }
 
-function Get-DecklePreviewAccessView {
+function Get-LauncherAccessView {
     param([Parameter(Mandatory)][string]$AccessId)
 
     switch ($AccessId) {
-        'project' { return Get-DecklePreviewProjectView }
-        'release' { return Get-DecklePreviewReleaseView }
-        'maintenance' { return Get-DecklePreviewMaintenanceView }
-        'setup' { return Get-DecklePreviewSetupView }
+        'project' { return Get-LauncherProjectView }
+        'release' { return Get-LauncherReleaseView }
+        'maintenance' { return Get-LauncherMaintenanceView }
+        'setup' { return Get-LauncherSetupView }
         default { throw "Unknown preview Access '$AccessId'." }
     }
 }

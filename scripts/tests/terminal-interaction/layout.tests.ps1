@@ -2,9 +2,9 @@ $ErrorActionPreference = 'Stop'
 $ScriptsDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $LibDir = Join-Path $ScriptsDir 'lib'
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
-. (Join-Path $LibDir 'deckle-preview\catalog.ps1')
-. (Join-Path $LibDir 'deckle-preview\statistics-preparation.ps1')
-. (Join-Path $LibDir 'deckle-preview\flows.ps1')
+. (Join-Path $LibDir 'launcher\catalog.ps1')
+. (Join-Path $LibDir 'launcher\statistics-preparation.ps1')
+. (Join-Path $LibDir 'launcher\flows.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
@@ -32,7 +32,7 @@ function Get-RoleLineIndex([object]$Frame, [string]$PresentationRole) {
     return $matches[0]
 }
 
-$root = Get-DecklePreviewRootView
+$root = Get-LauncherRootView
 $wide = Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -FocusedTargetId action.launch.release
 $wideText = @(ConvertTo-TerminalFrameText -Frame $wide)
 Assert-Equal 2 (Get-RoleLineIndex -Frame $wide -PresentationRole PrimarySeparator) 'the root Header keeps two stable content rails'
@@ -91,7 +91,7 @@ $previousPage = Get-Placement -Frame $shortLast -TargetId navigation.page.previo
 Assert-Equal $true $previousPage.Target.Enabled 'a later page exposes an enabled Previous target'
 Assert-Equal 1 @($shortLast.Targets | Where-Object { $_.TargetId -eq 'command.quit' }).Count 'the final page makes Quit reachable'
 
-$project = Get-DecklePreviewProjectView
+$project = Get-LauncherProjectView
 $projectFrame = Get-TerminalInteractionFrame -View $project -Width 100 -Height 24 -FocusedTargetId navigation.back
 $projectText = @(ConvertTo-TerminalFrameText -Frame $projectFrame) -join "`n"
 Assert-Equal 2 (Get-RoleLineIndex -Frame $projectFrame -PresentationRole PrimarySeparator) 'a nested Header keeps the same two content rails'
@@ -102,8 +102,8 @@ Assert-True ($projectText -match 'Backspace Back') 'a nested View advertises Bac
 Assert-True ($projectText -match 'Escape Back') 'a nested View advertises Escape as one-View navigation'
 
 $repositoryRoot = Split-Path -Parent $ScriptsDir
-$preparation = Get-DecklePreviewSnapshotView -Name Preparation -RepositoryRoot $repositoryRoot
-$maintenanceView = Get-DecklePreviewMaintenanceView
+$preparation = Get-LauncherSnapshotView -Name Preparation -RepositoryRoot $repositoryRoot
+$maintenanceView = Get-LauncherMaintenanceView
 $maintenanceFrame = Get-TerminalInteractionFrame -View $maintenanceView -Width 100 -Height 48 -FocusedTargetId action.repository-stats
 $maintenanceText = @(ConvertTo-TerminalFrameText -Frame $maintenanceFrame) -join "`n"
 $repositoryStatistics = Get-Placement -Frame $maintenanceFrame -TargetId action.repository-stats
@@ -163,7 +163,7 @@ $runningText = @(ConvertTo-TerminalFrameText -Frame $runningFrame) -join "`n"
 Assert-True ($runningText -match 'Ctrl\+C Quit') 'a running Execution keeps emergency exit discoverable'
 Assert-True ($runningText -notmatch 'Enter Open|Backspace Back|Escape Back') 'a running Execution advertises no unavailable command'
 
-$execution = Get-DecklePreviewSnapshotView -Name Execution
+$execution = Get-LauncherSnapshotView -Name Execution
 $executionAlignment = Get-TerminalInteractionFrame -View $execution -OwnerActionMenu $root -Width 100 -Height 24 -FocusedTargetId navigation.back -JournalOffset ([int]::MaxValue)
 $executionBack = Get-Placement -Frame $executionAlignment -TargetId navigation.back
 Assert-Equal $launchRelease.X $executionBack.X 'Execution Back inherits the first option track of its owning Action Menu'

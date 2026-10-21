@@ -3,9 +3,9 @@ $ScriptsDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $LibDir = Join-Path $ScriptsDir 'lib'
 $RepositoryRoot = Split-Path -Parent $ScriptsDir
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
-. (Join-Path $LibDir 'deckle-preview\catalog.ps1')
-. (Join-Path $LibDir 'deckle-preview\statistics-preparation.ps1')
-. (Join-Path $LibDir 'deckle-preview\flows.ps1')
+. (Join-Path $LibDir 'launcher\catalog.ps1')
+. (Join-Path $LibDir 'launcher\statistics-preparation.ps1')
+. (Join-Path $LibDir 'launcher\flows.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
@@ -38,7 +38,7 @@ try {
     [System.IO.File]::WriteAllText((Join-Path $scopeFixture 'src/App.cs'), 'class App {}')
     [System.IO.File]::WriteAllText((Join-Path $scopeFixture 'untracked.txt'), 'untracked')
     & git -C $scopeFixture add -- README.md docs/guide.md src/App.cs
-    $fixtureOptions = @(Get-DecklePreviewRepositoryScopeOptions -RepositoryRoot $scopeFixture)
+    $fixtureOptions = @(Get-LauncherRepositoryScopeOptions -RepositoryRoot $scopeFixture)
     Assert-Equal 3 $fixtureOptions.Count 'Scope offers tracked top-level partitions'
     Assert-Equal 'Root files' $fixtureOptions[0].Label 'root-level tracked files remain selectable'
     Assert-Equal 'docs/' $fixtureOptions[1].Label 'tracked folders are discovered instead of hard-coded'
@@ -47,8 +47,8 @@ try {
     if (Test-Path -LiteralPath $scopeFixture) { Remove-Item -LiteralPath $scopeFixture -Recurse -Force }
 }
 
-$view = New-DecklePreviewStatisticsPreparation -RepositoryRoot $RepositoryRoot
-$ownerActionMenu = Get-DecklePreviewMaintenanceView
+$view = New-LauncherStatisticsPreparation -RepositoryRoot $RepositoryRoot
+$ownerActionMenu = Get-LauncherMaintenanceView
 Assert-Equal Preparation $view.Kind 'statistics opens one Preparation composition'
 Assert-Equal 4 $view.Selectors.Count 'Preparation keeps material filters together'
 Assert-Equal $view.Revision $view.EffectiveScope.Revision 'Effective Scope uses the current Preparation revision'
@@ -105,13 +105,13 @@ $retainedState = & $module {
     $stack.Add($state)
     [void](Set-TerminalDecision -ViewStack $stack -Decision ([pscustomobject]@{ Kind = 'UpdateView'; View = $updatedView }))
     return $stack[0]
-} $view (Update-DecklePreviewStatisticsPreparation -View $view -Adjustment ([pscustomobject]@{ SelectorId = 'scope'; Value = 'src' }))
+} $view (Update-LauncherStatisticsPreparation -View $view -Adjustment ([pscustomobject]@{ SelectorId = 'scope'; Value = 'src' }))
 Assert-Equal selector.measures.lines $retainedState.FocusedTargetId 'accepted Selection changes retain focus'
 Assert-Equal 4 $retainedState.BodyOffset 'accepted Selection changes retain the current Preparation page'
 
 $withoutScope = $view
 foreach ($value in @($view.Selectors[0].SelectedValues)) {
-    $withoutScope = Update-DecklePreviewStatisticsPreparation `
+    $withoutScope = Update-LauncherStatisticsPreparation `
         -View $withoutScope `
         -Adjustment ([pscustomobject]@{ SelectorId = 'scope'; Value = $value })
 }
@@ -121,7 +121,7 @@ Assert-Equal 'Select at least one repository location.' $withoutScope.Confirmati
 
 $withoutMeasures = $view
 foreach ($value in @('files', 'bytes', 'lines')) {
-    $withoutMeasures = Update-DecklePreviewStatisticsPreparation `
+    $withoutMeasures = Update-LauncherStatisticsPreparation `
         -View $withoutMeasures `
         -Adjustment ([pscustomobject]@{ SelectorId = 'measures'; Value = $value })
 }

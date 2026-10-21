@@ -1,6 +1,6 @@
 # Preview controller for one compact Repository statistics Preparation.
 
-function Get-DecklePreviewRepositoryScopeOptions {
+function Get-LauncherRepositoryScopeOptions {
     [CmdletBinding()]
     param([Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$RepositoryRoot)
 
@@ -44,7 +44,7 @@ function Get-DecklePreviewRepositoryScopeOptions {
     return @($options)
 }
 
-function Get-DecklePreviewOptionLabel {
+function Get-LauncherOptionLabel {
     param(
         [Parameter(Mandatory)][object[]]$Options,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Value
@@ -55,7 +55,7 @@ function Get-DecklePreviewOptionLabel {
     return $match[0].Label
 }
 
-function Get-DecklePreviewSelectedLabels {
+function Get-LauncherSelectedLabels {
     param(
         [Parameter(Mandatory)][object]$Selector,
         [string]$EmptyLabel = 'None selected'
@@ -70,7 +70,7 @@ function Get-DecklePreviewSelectedLabels {
     return $labels -join ', '
 }
 
-function Get-DecklePreviewScopeSnapshot {
+function Get-LauncherScopeSnapshot {
     param([Parameter(Mandatory)][object]$Selector)
 
     $selectedValues = @($Selector.SelectedValues)
@@ -81,19 +81,19 @@ function Get-DecklePreviewScopeSnapshot {
     }
 }
 
-function Get-DecklePreviewScopeDescription {
+function Get-LauncherScopeDescription {
     param([Parameter(Mandatory)][object]$Selector)
 
-    $snapshot = Get-DecklePreviewScopeSnapshot -Selector $Selector
+    $snapshot = Get-LauncherScopeSnapshot -Selector $Selector
     if ($snapshot.IsWholeRepository) { return 'Whole repository' }
     if ($Selector.SelectedValues.Count -eq 0) { return 'Nothing selected' }
     return '{0} of {1} tracked locations' -f $Selector.SelectedValues.Count, $Selector.Options.Count
 }
 
-function Get-DecklePreviewScopeDetailLines {
+function Get-LauncherScopeDetailLines {
     param([Parameter(Mandatory)][object]$Selector)
 
-    $snapshot = Get-DecklePreviewScopeSnapshot -Selector $Selector
+    $snapshot = Get-LauncherScopeSnapshot -Selector $Selector
     if ($snapshot.IsWholeRepository) {
         return @('Whole repository; tracked files only.')
     }
@@ -109,7 +109,7 @@ function Get-DecklePreviewScopeDetailLines {
     return @('Included: {0}.' -f (($selectedOptions | ForEach-Object Label) -join ', '))
 }
 
-function New-DecklePreviewStatisticsPreparation {
+function New-LauncherStatisticsPreparation {
     param(
         [int]$Revision = 1,
         [System.Collections.IDictionary]$Selections,
@@ -122,7 +122,7 @@ function New-DecklePreviewStatisticsPreparation {
         if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
             throw 'RepositoryRoot is required when ScopeOptions are not supplied.'
         }
-        $ScopeOptions = @(Get-DecklePreviewRepositoryScopeOptions -RepositoryRoot $RepositoryRoot)
+        $ScopeOptions = @(Get-LauncherRepositoryScopeOptions -RepositoryRoot $RepositoryRoot)
     }
     if ($null -eq $Selections) {
         $Selections = [ordered]@{
@@ -162,16 +162,16 @@ function New-DecklePreviewStatisticsPreparation {
     $filesSelector = @($selectors | Where-Object { $_.SelectorId -eq 'files' })[0]
     $measuresSelector = @($selectors | Where-Object { $_.SelectorId -eq 'measures' })[0]
     $groupingSelector = @($selectors | Where-Object { $_.SelectorId -eq 'grouping' })[0]
-    $scopeLabel = Get-DecklePreviewScopeDescription -Selector $scopeSelector
-    $filesLabel = Get-DecklePreviewSelectedLabels -Selector $filesSelector
-    $measuresLabel = Get-DecklePreviewSelectedLabels -Selector $measuresSelector
-    $groupingLabel = Get-DecklePreviewSelectedLabels -Selector $groupingSelector
+    $scopeLabel = Get-LauncherScopeDescription -Selector $scopeSelector
+    $filesLabel = Get-LauncherSelectedLabels -Selector $filesSelector
+    $measuresLabel = Get-LauncherSelectedLabels -Selector $measuresSelector
+    $groupingLabel = Get-LauncherSelectedLabels -Selector $groupingSelector
 
     $effectiveScope = New-TerminalEffectiveScope `
         -Revision $Revision `
         -State Resolved `
         -Lines @(
-            @(Get-DecklePreviewScopeDetailLines -Selector $scopeSelector)
+            @(Get-LauncherScopeDetailLines -Selector $scopeSelector)
             "$filesLabel; tracked files only."
             'Links and junctions are excluded.'
         )
@@ -180,8 +180,8 @@ function New-DecklePreviewStatisticsPreparation {
         -Lines @(
             'Action: Repository statistics'
             "Scope: $scopeLabel"
-            $(if (-not (Get-DecklePreviewScopeSnapshot -Selector $scopeSelector).IsWholeRepository) {
-                Get-DecklePreviewScopeDetailLines -Selector $scopeSelector
+            $(if (-not (Get-LauncherScopeSnapshot -Selector $scopeSelector).IsWholeRepository) {
+                Get-LauncherScopeDetailLines -Selector $scopeSelector
             })
             "Files: $filesLabel"
             "Measures: $measuresLabel"
@@ -192,7 +192,7 @@ function New-DecklePreviewStatisticsPreparation {
     $hasMeasures = $measuresSelector.SelectedValues.Count -gt 0
     $canConfirm = $hasScope -and $hasMeasures
     $selectionSnapshot = [pscustomobject][ordered]@{
-        Scope = (Get-DecklePreviewScopeSnapshot -Selector $scopeSelector)
+        Scope = (Get-LauncherScopeSnapshot -Selector $scopeSelector)
         Files = @($filesSelector.SelectedValues)
         Measures = @($measuresSelector.SelectedValues)
         Grouping = @($groupingSelector.SelectedValues)
@@ -228,11 +228,11 @@ function New-DecklePreviewStatisticsPreparation {
         -EffectiveScope $effectiveScope `
         -Review $review `
         -ConfirmationTarget $confirmation `
-        -BackTarget (New-DecklePreviewBackTarget) `
+        -BackTarget (New-LauncherBackTarget) `
         -OwnerActionMenuId $OwnerActionMenuId
 }
 
-function Update-DecklePreviewStatisticsPreparation {
+function Update-LauncherStatisticsPreparation {
     param(
         [Parameter(Mandatory)][object]$View,
         [Parameter(Mandatory)][object]$Adjustment
@@ -266,7 +266,7 @@ function Update-DecklePreviewStatisticsPreparation {
         )
     }
 
-    return New-DecklePreviewStatisticsPreparation `
+    return New-LauncherStatisticsPreparation `
         -Revision ($View.Revision + 1) `
         -Selections $selections `
         -ScopeOptions $scopeSelector.Options `
