@@ -269,11 +269,13 @@ foreach ($line in $wide.Lines) {
 }
 Assert-Equal 1 $bannerRuns 'the banner paints as one run carrying its segment role'
 
-# Beside an Action Row, an independent Action is a row of its own in the
-# label column: it is an Action, not one more Variant of the row above it.
+# Under an Action Row, the independent Actions of the Section fill the grid
+# columns after one blank line: they are Actions of their own, not more
+# Variants of the row above, and the gap says so without a heading.
 $versionActions = @(
-    New-TerminalTarget -TargetId action.mark-release -Label 'Mark release' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'mark-release' })
     New-TerminalTarget -TargetId action.preview-changelog -Label 'Preview changelog' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'preview-changelog' })
+    New-TerminalTarget -TargetId action.write-changelog -Label 'Write changelog' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'write-changelog' })
+    New-TerminalTarget -TargetId action.mark-release -Label 'Mark release' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'mark-release' })
 )
 $quitTarget = New-TerminalTarget -TargetId command.quit -Label Quit -IntentKind Command -Payload ([pscustomobject]@{ Command = 'Exit' }) -PresentationRole Exit
 $versionsMenu = New-TerminalActionMenuView -ViewId menu.versions -Banner 'Versions' -Sections @(
@@ -281,23 +283,36 @@ $versionsMenu = New-TerminalActionMenuView -ViewId menu.versions -Banner 'Versio
 )
 $versionsFrame = Get-TerminalInteractionFrame -View $versionsMenu -Width 100 -Height 24 -FocusedTargetId action.bump.patch
 $versionsPatch = Get-Placement -Frame $versionsFrame -TargetId action.bump.patch
-$markRelease = Get-Placement -Frame $versionsFrame -TargetId action.mark-release
+$versionsMajor = Get-Placement -Frame $versionsFrame -TargetId action.bump.major
 $previewChangelog = Get-Placement -Frame $versionsFrame -TargetId action.preview-changelog
+$writeChangelog = Get-Placement -Frame $versionsFrame -TargetId action.write-changelog
+$markRelease = Get-Placement -Frame $versionsFrame -TargetId action.mark-release
 $versionsQuit = Get-Placement -Frame $versionsFrame -TargetId command.quit
-Assert-Equal ($versionsPatch.Y + 1) $markRelease.Y 'an independent Action follows the Action Row on a line of its own'
-Assert-Equal ($markRelease.Y + 1) $previewChangelog.Y 'each independent Action takes one line'
-$recordLabel = @($versionsFrame.Lines[$versionsPatch.Y].Segments | Where-Object { $_.PresentationRole -eq 'ActionLabel' })[0]
-$markReleaseSegment = @($versionsFrame.Lines[$markRelease.Y].Segments | Where-Object { $_.Text -match 'Mark release' })[0]
-Assert-Equal $recordLabel.X ($markReleaseSegment.X + 2) 'the Action text aligns on the label column, behind its focus marker'
-Assert-True ($markRelease.X -lt $versionsPatch.X) 'an independent Action never takes a Variant column'
-Assert-Equal (2 + 'Preview changelog'.Length + 3) $versionsPatch.X 'the label column widens to the longest independent Action'
-Assert-Equal $previewChangelog.Y $versionsQuit.Y 'Quit seats on the last line, beside the last independent Action'
+Assert-Equal ($versionsMajor.Y + 2) $previewChangelog.Y 'one blank line parts the independent Actions from the Action Row'
+Assert-Equal 0 $versionsFrame.Lines[$versionsMajor.Y + 1].Segments.Count 'the parting line is empty'
+Assert-Equal $versionsPatch.X $previewChangelog.X 'the first independent Action takes the first grid column'
+Assert-Equal $previewChangelog.Y $writeChangelog.Y 'independent Actions fill the grid columns'
+Assert-Equal (Get-Placement -Frame $versionsFrame -TargetId action.bump.minor).X $writeChangelog.X 'independent Actions sit on the Variant columns'
+Assert-Equal (2 + 'Record version'.Length + 3) $versionsPatch.X 'independent Actions leave the label column to the Action Row'
+Assert-Equal $markRelease.Y $versionsQuit.Y 'Quit seats on the last line, beside the last independent Action'
 Assert-Equal 98 ($versionsQuit.X + $versionsQuit.Width) 'Quit keeps the right rail beside an independent Action'
+$versionsWrapped = Get-TerminalInteractionFrame -View $versionsMenu -Width 80 -Height 24 -FocusedTargetId action.bump.patch
+$wrappedMajor = Get-Placement -Frame $versionsWrapped -TargetId action.bump.major
+$wrappedPreview = Get-Placement -Frame $versionsWrapped -TargetId action.preview-changelog
+$wrappedMark = Get-Placement -Frame $versionsWrapped -TargetId action.mark-release
+Assert-Equal ($wrappedMajor.Y + 2) $wrappedPreview.Y 'the blank line follows the last wrapped Variant line'
+Assert-Equal ($wrappedPreview.Y + 1) $wrappedMark.Y 'independent Actions wrap like Variants, with no further gap'
+Assert-Equal $wrappedPreview.X $wrappedMark.X 'a wrapped independent Action starts under the first column'
 $versionsNarrow = Get-TerminalInteractionFrame -View $versionsMenu -Width 60 -Height 30 -FocusedTargetId action.bump.patch
-$narrowMark = Get-Placement -Frame $versionsNarrow -TargetId action.mark-release
-$narrowMarkSegment = @($versionsNarrow.Lines[$narrowMark.Y].Segments | Where-Object { $_.Text -match 'Mark release' })[0]
-$narrowRecordLabel = @($versionsNarrow.Lines | ForEach-Object { $_.Segments } | Where-Object { $_.PresentationRole -eq 'ActionLabel' -and $_.Text -eq 'Record version' })[0]
-Assert-Equal $narrowRecordLabel.X ($narrowMarkSegment.X + 2) 'a narrow terminal keeps the independent Action on the label column'
+$narrowMajor = Get-Placement -Frame $versionsNarrow -TargetId action.bump.major
+$narrowPreview = Get-Placement -Frame $versionsNarrow -TargetId action.preview-changelog
+Assert-Equal ($narrowMajor.Y + 2) $narrowPreview.Y 'a narrow terminal keeps the blank line under the last Variant'
+Assert-Equal $narrowMajor.X $narrowPreview.X 'a narrow terminal lists independent Actions on the Variant track'
+$maintenanceLike = New-TerminalActionMenuView -ViewId menu.plain -Banner 'Plain' -Sections @(
+    New-TerminalSection -Label $null -Items ($versionActions + @($quitTarget))
+)
+$plainFrame = Get-TerminalInteractionFrame -View $maintenanceLike -Width 100 -Height 24 -FocusedTargetId action.preview-changelog
+Assert-Equal ((Get-RoleLineIndex -Frame $plainFrame -PresentationRole PrimarySeparator) + 2) (Get-Placement -Frame $plainFrame -TargetId action.preview-changelog).Y 'without an Action Row above, independent Actions open the body with no gap'
 
 # A logo opens the Header when the terminal affords it: Unicode output, a
 # width that holds it, and twelve body lines left under the Header.

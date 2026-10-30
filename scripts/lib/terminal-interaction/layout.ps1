@@ -237,34 +237,35 @@ function ConvertTo-TerminalMenuLayoutSections {
         $rows = [System.Collections.Generic.List[object]]::new()
         $pendingTargets = [System.Collections.Generic.List[object]]::new()
         $trailingTarget = $null
-        # Beside Action Rows, an independent Action is a row of its own with
-        # its label in the label column, where an Action Row's subject sits:
-        # it is an Action, not one more Variant of the row above it. Without
-        # Action Rows around, independent Actions fill the grid as peers.
-        $hasActionRows = @($section.Items | Where-Object { $_.PSObject.Properties['Kind'] -and $_.Kind -eq 'ActionRow' }).Count -gt 0
+        # Consecutive plain targets form one row; the renderer fills the
+        # grid's columns with them and wraps the rest, like Variants. Right
+        # under an Action Row, such a row opens with a blank line: its targets
+        # are Actions of their own, not more Variants of the row above, and
+        # the gap says so where a heading would be too much.
+        $flushTargets = {
+            if ($pendingTargets.Count -eq 0) { return }
+            $rows.Add([pscustomobject]@{
+                Kind = 'TargetRow'
+                Label = ''
+                Targets = @($pendingTargets)
+                TrailingTarget = $null
+                Spaced = $rows.Count -gt 0 -and $rows[$rows.Count - 1].Kind -eq 'ActionRow'
+            })
+            $pendingTargets.Clear()
+        }
 
         for ($itemIndex = 0; $itemIndex -lt $section.Items.Count; $itemIndex++) {
             $item = $section.Items[$itemIndex]
             $isActionRow = $item.PSObject.Properties['Kind'] -and $item.Kind -eq 'ActionRow'
             if ($isActionRow) {
-                if ($pendingTargets.Count -gt 0) {
-                    $rows.Add([pscustomobject]@{ Kind = 'TargetRow'; Label = ''; Targets = @($pendingTargets); TrailingTarget = $null })
-                    $pendingTargets.Clear()
-                }
+                & $flushTargets
                 $rows.Add([pscustomobject]@{
                     Kind = 'ActionRow'
                     Label = $item.Label
                     Variants = @($item.Variants)
                     TrailingTarget = $null
+                    Spaced = $false
                 })
-                continue
-            }
-            if ($hasActionRows -and $item.IntentKind -eq 'Action') {
-                if ($pendingTargets.Count -gt 0) {
-                    $rows.Add([pscustomobject]@{ Kind = 'TargetRow'; Label = ''; Targets = @($pendingTargets); TrailingTarget = $null })
-                    $pendingTargets.Clear()
-                }
-                $rows.Add([pscustomobject]@{ Kind = 'ActionTargetRow'; Label = $item.Label; Target = $item; TrailingTarget = $null })
                 continue
             }
 
@@ -272,17 +273,13 @@ function ConvertTo-TerminalMenuLayoutSections {
                 $trailingTarget = $item
                 continue
             }
-            # Consecutive plain targets form one row; the renderer fills the
-            # grid's columns with them and wraps the rest, like Variants.
             $pendingTargets.Add($item)
         }
-        if ($pendingTargets.Count -gt 0) {
-            $rows.Add([pscustomobject]@{ Kind = 'TargetRow'; Label = ''; Targets = @($pendingTargets); TrailingTarget = $null })
-        }
+        & $flushTargets
         if ($null -ne $trailingTarget) {
             # The Exit target seats at the right end of the menu's last line.
             if ($rows.Count -eq 0) {
-                $rows.Add([pscustomobject]@{ Kind = 'TargetRow'; Label = ''; Targets = @(); TrailingTarget = $trailingTarget })
+                $rows.Add([pscustomobject]@{ Kind = 'TargetRow'; Label = ''; Targets = @(); TrailingTarget = $trailingTarget; Spaced = $false })
             } else {
                 $rows[$rows.Count - 1].TrailingTarget = $trailingTarget
             }
@@ -395,23 +392,7 @@ function Add-TerminalMenuRow {
     )
 
     $left = 2
-    if ($Row.Kind -eq 'ActionTargetRow') {
-        $line = Add-TerminalFrameLine -Frame $Frame
-        if ($line -lt 0) { return }
-        # The cell starts two cells before the label column, so that its
-        # text, behind the focus marker, lands where an Action Row's subject
-        # lands: the Action reads as a peer of the rows around it.
-        $width = if ($Wide) { $Grid.LabelWidth + 2 } else { [Math]::Max(1, $Frame.Width - 4) }
-        Add-TerminalTarget -Frame $Frame -Target $Row.Target -LineIndex $line -X 0 -Width $width -FocusedTargetId $FocusedTargetId
-        if ($null -eq $Row.TrailingTarget) { return }
-        if ($Wide) {
-            Add-TerminalTarget -Frame $Frame -Target $Row.TrailingTarget -LineIndex $line -X ($Grid.Right - $Grid.TrailingWidth) -Width $Grid.TrailingWidth -FocusedTargetId $FocusedTargetId
-        } else {
-            $line = Add-TerminalFrameLine -Frame $Frame
-            Add-TerminalTarget -Frame $Frame -Target $Row.TrailingTarget -LineIndex $line -X 4 -Width ([Math]::Max(1, $Frame.Width - 6)) -FocusedTargetId $FocusedTargetId
-        }
-        return
-    }
+    if ($Row.Spaced) { [void](Add-TerminalFrameLine -Frame $Frame) }
     if ($Wide) {
         $line = Add-TerminalFrameLine -Frame $Frame
         if ($line -lt 0) { return }
