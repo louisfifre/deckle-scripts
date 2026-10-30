@@ -83,7 +83,8 @@ function New-CatalogRows {
 function New-CatalogLevel {
     param(
         [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][string]$RootPath
+        [Parameter(Mandatory)][string]$RootPath,
+        [string[]]$ExcludeFolder = @()
     )
 
     $name = Split-Path -Leaf $Path
@@ -99,6 +100,10 @@ function New-CatalogLevel {
         Sections = @()
         Accesses = @()
         Hidden = @()
+        # False for a folder with no described script anywhere beneath it:
+        # it stays in the catalog, so the compliance check still reports its
+        # hidden scripts, but no menu offers it as an Access.
+        HasActions = $false
     }
 
     $frontMatter = Get-MarkdownFrontMatter -Path (Join-Path $Path 'README.md')
@@ -180,26 +185,36 @@ function New-CatalogLevel {
     foreach ($section in @(Sort-CatalogEntries -Entries @($namedEntries))) { $sections.Add($section) }
     $level.Sections = @($sections)
 
+    # The exclusions apply to the root's direct children only: a launcher
+    # keeps its library and tests out of the menu, nothing deeper.
+    $isRoot = $Path -eq $RootPath
     $accessEntries = foreach ($directory in @(Get-ChildItem -LiteralPath $Path -Directory |
             Where-Object { -not $_.Name.StartsWith('.') } |
+            Where-Object { -not ($isRoot -and $_.Name -in $ExcludeFolder) } |
             Sort-Object -Property Name)) {
         $child = New-CatalogLevel -Path $directory.FullName -RootPath $RootPath
         [pscustomobject]@{ Item = $child; Order = $child.Order; Label = $child.Label }
     }
     $level.Accesses = @(Sort-CatalogEntries -Entries @($accessEntries))
     $level.Hidden = @($hidden)
+    $level.HasActions = $sections.Count -gt 0 -or @($level.Accesses | Where-Object HasActions).Count -gt 0
     return $level
 }
 
 function Get-ScriptCatalog {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$Path)
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        # Names of root folders that never enter the catalog, such as the
+        # launcher's own library and tests.
+        [string[]]$ExcludeFolder = @()
+    )
 
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
         throw "Scripts folder '$Path' does not exist."
     }
     $rootPath = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $Path).ProviderPath).TrimEnd('\', '/')
-    return New-CatalogLevel -Path $rootPath -RootPath $rootPath
+    return New-CatalogLevel -Path $rootPath -RootPath $rootPath -ExcludeFolder $ExcludeFolder
 }
 
 function Get-CatalogHiddenScripts {
