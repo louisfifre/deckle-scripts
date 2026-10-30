@@ -237,6 +237,11 @@ function ConvertTo-TerminalMenuLayoutSections {
         $rows = [System.Collections.Generic.List[object]]::new()
         $pendingTargets = [System.Collections.Generic.List[object]]::new()
         $trailingTarget = $null
+        # Beside Action Rows, an independent Action is a row of its own with
+        # its label in the label column, where an Action Row's subject sits:
+        # it is an Action, not one more Variant of the row above it. Without
+        # Action Rows around, independent Actions fill the grid as peers.
+        $hasActionRows = @($section.Items | Where-Object { $_.PSObject.Properties['Kind'] -and $_.Kind -eq 'ActionRow' }).Count -gt 0
 
         for ($itemIndex = 0; $itemIndex -lt $section.Items.Count; $itemIndex++) {
             $item = $section.Items[$itemIndex]
@@ -252,6 +257,14 @@ function ConvertTo-TerminalMenuLayoutSections {
                     Variants = @($item.Variants)
                     TrailingTarget = $null
                 })
+                continue
+            }
+            if ($hasActionRows -and $item.IntentKind -eq 'Action') {
+                if ($pendingTargets.Count -gt 0) {
+                    $rows.Add([pscustomobject]@{ Kind = 'TargetRow'; Label = ''; Targets = @($pendingTargets); TrailingTarget = $null })
+                    $pendingTargets.Clear()
+                }
+                $rows.Add([pscustomobject]@{ Kind = 'ActionTargetRow'; Label = $item.Label; Target = $item; TrailingTarget = $null })
                 continue
             }
 
@@ -382,6 +395,23 @@ function Add-TerminalMenuRow {
     )
 
     $left = 2
+    if ($Row.Kind -eq 'ActionTargetRow') {
+        $line = Add-TerminalFrameLine -Frame $Frame
+        if ($line -lt 0) { return }
+        # The cell starts two cells before the label column, so that its
+        # text, behind the focus marker, lands where an Action Row's subject
+        # lands: the Action reads as a peer of the rows around it.
+        $width = if ($Wide) { $Grid.LabelWidth + 2 } else { [Math]::Max(1, $Frame.Width - 4) }
+        Add-TerminalTarget -Frame $Frame -Target $Row.Target -LineIndex $line -X 0 -Width $width -FocusedTargetId $FocusedTargetId
+        if ($null -eq $Row.TrailingTarget) { return }
+        if ($Wide) {
+            Add-TerminalTarget -Frame $Frame -Target $Row.TrailingTarget -LineIndex $line -X ($Grid.Right - $Grid.TrailingWidth) -Width $Grid.TrailingWidth -FocusedTargetId $FocusedTargetId
+        } else {
+            $line = Add-TerminalFrameLine -Frame $Frame
+            Add-TerminalTarget -Frame $Frame -Target $Row.TrailingTarget -LineIndex $line -X 4 -Width ([Math]::Max(1, $Frame.Width - 6)) -FocusedTargetId $FocusedTargetId
+        }
+        return
+    }
     if ($Wide) {
         $line = Add-TerminalFrameLine -Frame $Frame
         if ($line -lt 0) { return }
@@ -576,7 +606,9 @@ function Get-TerminalInteractionFrame {
         [bool]$SupportsUnicode = $true,
         [ValidateSet('Supported', 'Unsupported', 'Unknown')][string]$ColorCapability = 'Supported',
         [ValidateRange(0, 2147483647)][int]$BodyOffset = 0,
-        [ValidateRange(0, 2147483647)][int]$JournalOffset = 0
+        [ValidateRange(0, 2147483647)][int]$JournalOffset = 0,
+        # Lines drawn above the Header when the terminal affords them.
+        [AllowEmptyCollection()][string[]]$Logo = @()
     )
 
     if ($View.Kind -eq 'ActionMenu') {
@@ -589,7 +621,7 @@ function Get-TerminalInteractionFrame {
 
     $navigationGrid = Get-TerminalNavigationGrid -OwnerActionMenu $OwnerActionMenu -Width $Width
     $frame = New-TerminalFramePlan -View $View -Width $Width -Height $Height -ColorCapability $ColorCapability
-    Add-TerminalHeader -Frame $frame -View $View -SupportsUnicode $SupportsUnicode
+    Add-TerminalHeader -Frame $frame -View $View -SupportsUnicode $SupportsUnicode -Logo $Logo
     switch ($View.Kind) {
         'ActionMenu' {
             $bodyFrame = New-TerminalFramePlan -View $View -Width $Width -Height 1000 -ColorCapability $ColorCapability

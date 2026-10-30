@@ -269,4 +269,48 @@ foreach ($line in $wide.Lines) {
 }
 Assert-Equal 1 $bannerRuns 'the banner paints as one run carrying its segment role'
 
+# Beside an Action Row, an independent Action is a row of its own in the
+# label column: it is an Action, not one more Variant of the row above it.
+$versionActions = @(
+    New-TerminalTarget -TargetId action.mark-release -Label 'Mark release' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'mark-release' })
+    New-TerminalTarget -TargetId action.preview-changelog -Label 'Preview changelog' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'preview-changelog' })
+)
+$quitTarget = New-TerminalTarget -TargetId command.quit -Label Quit -IntentKind Command -Payload ([pscustomobject]@{ Command = 'Exit' }) -PresentationRole Exit
+$versionsMenu = New-TerminalActionMenuView -ViewId menu.versions -Banner 'Versions' -Sections @(
+    New-TerminalSection -Label $null -Items (@(New-TerminalActionRow -Label 'Record version' -Variants $bumpVariants) + $versionActions + @($quitTarget))
+)
+$versionsFrame = Get-TerminalInteractionFrame -View $versionsMenu -Width 100 -Height 24 -FocusedTargetId action.bump.patch
+$versionsPatch = Get-Placement -Frame $versionsFrame -TargetId action.bump.patch
+$markRelease = Get-Placement -Frame $versionsFrame -TargetId action.mark-release
+$previewChangelog = Get-Placement -Frame $versionsFrame -TargetId action.preview-changelog
+$versionsQuit = Get-Placement -Frame $versionsFrame -TargetId command.quit
+Assert-Equal ($versionsPatch.Y + 1) $markRelease.Y 'an independent Action follows the Action Row on a line of its own'
+Assert-Equal ($markRelease.Y + 1) $previewChangelog.Y 'each independent Action takes one line'
+$recordLabel = @($versionsFrame.Lines[$versionsPatch.Y].Segments | Where-Object { $_.PresentationRole -eq 'ActionLabel' })[0]
+$markReleaseSegment = @($versionsFrame.Lines[$markRelease.Y].Segments | Where-Object { $_.Text -match 'Mark release' })[0]
+Assert-Equal $recordLabel.X ($markReleaseSegment.X + 2) 'the Action text aligns on the label column, behind its focus marker'
+Assert-True ($markRelease.X -lt $versionsPatch.X) 'an independent Action never takes a Variant column'
+Assert-Equal (2 + 'Preview changelog'.Length + 3) $versionsPatch.X 'the label column widens to the longest independent Action'
+Assert-Equal $previewChangelog.Y $versionsQuit.Y 'Quit seats on the last line, beside the last independent Action'
+Assert-Equal 98 ($versionsQuit.X + $versionsQuit.Width) 'Quit keeps the right rail beside an independent Action'
+$versionsNarrow = Get-TerminalInteractionFrame -View $versionsMenu -Width 60 -Height 30 -FocusedTargetId action.bump.patch
+$narrowMark = Get-Placement -Frame $versionsNarrow -TargetId action.mark-release
+$narrowMarkSegment = @($versionsNarrow.Lines[$narrowMark.Y].Segments | Where-Object { $_.Text -match 'Mark release' })[0]
+$narrowRecordLabel = @($versionsNarrow.Lines | ForEach-Object { $_.Segments } | Where-Object { $_.PresentationRole -eq 'ActionLabel' -and $_.Text -eq 'Record version' })[0]
+Assert-Equal $narrowRecordLabel.X ($narrowMarkSegment.X + 2) 'a narrow terminal keeps the independent Action on the label column'
+
+# A logo opens the Header when the terminal affords it: Unicode output, a
+# width that holds it, and twelve body lines left under the Header.
+$logo = @('XX XX', 'XX XX  SCRIPTS')
+$logoFrame = Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -FocusedTargetId action.launch.release -Logo $logo
+Assert-Equal 5 (Get-RoleLineIndex -Frame $logoFrame -PresentationRole PrimarySeparator) 'the logo and its gap lift the Header rails by three lines'
+Assert-Equal 'Banner' $logoFrame.Lines[0].Segments[0].PresentationRole 'the logo takes the Banner role'
+Assert-Equal 'XX XX  SCRIPTS' $logoFrame.Lines[1].Segments[0].Text 'the logo lines open the frame in order'
+Assert-Equal 0 $logoFrame.Lines[2].Segments.Count 'one blank line separates the logo from the title line'
+Assert-Equal ($launchRelease.Y + 3) (Get-Placement -Frame $logoFrame -TargetId action.launch.release).Y 'the body follows the logo'
+Assert-Equal 5 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 100 -Height 18 -Logo $logo) -PresentationRole PrimarySeparator) 'eighteen lines still afford the logo'
+Assert-Equal 2 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 100 -Height 17 -Logo $logo) -PresentationRole PrimarySeparator) 'a shorter terminal drops the logo before the body'
+Assert-Equal 2 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -Logo $logo -SupportsUnicode $false) -PresentationRole PrimarySeparator) 'an ASCII-only host draws no logo'
+Assert-Equal 2 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 20 -Height 24 -Logo @('X' * 30)) -PresentationRole PrimarySeparator) 'a terminal narrower than the logo draws none'
+
 Write-Host 'layout.tests.ps1: PASS' -ForegroundColor Green

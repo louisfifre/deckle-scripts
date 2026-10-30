@@ -55,7 +55,8 @@ function Get-TerminalStateFrame {
     param(
         [Parameter(Mandatory)][System.Collections.Generic.List[object]]$ViewStack,
         [Parameter(Mandatory)][object]$State,
-        [Parameter(Mandatory)][object]$HostState
+        [Parameter(Mandatory)][object]$HostState,
+        [AllowEmptyCollection()][string[]]$Logo = @()
     )
 
     $metrics = Get-TerminalHostMetrics
@@ -69,7 +70,8 @@ function Get-TerminalStateFrame {
         -SupportsUnicode ($HostState.UnicodeOutput -eq 'Supported') `
         -ColorCapability $HostState.Color `
         -BodyOffset $State.BodyOffset `
-        -JournalOffset $State.JournalOffset
+        -JournalOffset $State.JournalOffset `
+        -Logo $Logo
 }
 
 function Invoke-TerminalExecution {
@@ -77,7 +79,8 @@ function Invoke-TerminalExecution {
         [Parameter(Mandatory)][System.Collections.Generic.List[object]]$ViewStack,
         [Parameter(Mandatory)][object]$Decision,
         [Parameter(Mandatory)][object]$HostState,
-        [AllowNull()][object]$PreviousFrame
+        [AllowNull()][object]$PreviousFrame,
+        [AllowEmptyCollection()][string[]]$Logo = @()
     )
 
     # The run owns the terminal until it ends: no input is read, the Journal
@@ -89,7 +92,7 @@ function Invoke-TerminalExecution {
         param($view)
         $state.View = $view
         $state.JournalOffset = [int]::MaxValue
-        $frame = Get-TerminalStateFrame -ViewStack $ViewStack -State $state -HostState $HostState
+        $frame = Get-TerminalStateFrame -ViewStack $ViewStack -State $state -HostState $HostState -Logo $Logo
         Write-TerminalInteractionFrame -Frame $frame -HostState $HostState -PreviousFrame $lastFrame
         $lastFrame = $frame
     }.GetNewClosure()
@@ -149,7 +152,10 @@ function Start-TerminalInteraction {
     param(
         [Parameter(Mandatory)][object]$RootView,
         [Parameter(Mandatory)][scriptblock]$IntentHandler,
-        [ValidateSet('Terminal', 'TrueColor')][string]$Palette = 'Terminal'
+        [ValidateSet('Terminal', 'TrueColor')][string]$Palette = 'Terminal',
+        # Lines drawn above the Header of every frame when the terminal
+        # affords them.
+        [AllowEmptyCollection()][string[]]$Logo = @()
     )
 
     $viewStack = [System.Collections.Generic.List[object]]::new()
@@ -171,7 +177,8 @@ function Start-TerminalInteraction {
                 -SupportsUnicode ($hostState.UnicodeOutput -eq 'Supported') `
                 -ColorCapability $hostState.Color `
                 -BodyOffset $currentState.BodyOffset `
-                -JournalOffset $currentState.JournalOffset
+                -JournalOffset $currentState.JournalOffset `
+                -Logo $Logo
 
             $initialFocus = Get-TerminalInitialFocus -Frame $frame
             $hasCurrentFocus = $false
@@ -189,7 +196,8 @@ function Start-TerminalInteraction {
                     -SupportsUnicode ($hostState.UnicodeOutput -eq 'Supported') `
                     -ColorCapability $hostState.Color `
                     -BodyOffset $currentState.BodyOffset `
-                    -JournalOffset $currentState.JournalOffset
+                    -JournalOffset $currentState.JournalOffset `
+                    -Logo $Logo
             }
             Write-TerminalInteractionFrame -Frame $frame -HostState $hostState -PreviousFrame $previousFrame
             $previousFrame = $frame
@@ -318,7 +326,7 @@ function Start-TerminalInteraction {
                     $decision = & $IntentHandler $request $currentState.View
                     $exitRequested = Set-TerminalDecision -ViewStack $viewStack -Decision $decision
                     if ($null -ne $decision -and $decision.Kind -eq 'Execute') {
-                        $previousFrame = Invoke-TerminalExecution -ViewStack $viewStack -Decision $decision -HostState $hostState -PreviousFrame $previousFrame
+                        $previousFrame = Invoke-TerminalExecution -ViewStack $viewStack -Decision $decision -HostState $hostState -PreviousFrame $previousFrame -Logo $Logo
                     }
                 }
                 'Spacebar' {
