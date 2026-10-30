@@ -9,3 +9,8 @@
 *.md   text eol=lf
 *.json text eol=lf
 .gitattributes text eol=lf
+
+# Shell hooks run under git's sh, which rejects a carriage return after the
+# shebang.
+scripts/lib/hooks/pre-commit text eol=lf
+scripts/lib/hooks/commit-msg text eol=lf
