@@ -196,7 +196,8 @@ function New-TerminalExecutionView {
         [Parameter(Mandatory)][ValidateNotNullOrEmpty()][string]$Banner,
         [string]$Context,
         [Parameter(Mandatory)][ValidateSet('Running', 'Completed', 'Failed')][string]$State,
-        [Parameter(Mandatory)][object[]]$JournalLines,
+        # A run that has not written anything yet has an empty Journal.
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$JournalLines,
         [Parameter(Mandatory)][object[]]$TrackingSteps,
         [string]$Result,
         [object]$BackTarget,

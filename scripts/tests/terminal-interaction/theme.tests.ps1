@@ -2,9 +2,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptsDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $LibDir = Join-Path $ScriptsDir 'lib'
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
-. (Join-Path $LibDir 'launcher\catalog.ps1')
-. (Join-Path $LibDir 'launcher\statistics-preparation.ps1')
-. (Join-Path $LibDir 'launcher\flows.ps1')
+. (Join-Path $ScriptsDir 'tests\fixtures\terminal-interaction\sample-views.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
@@ -198,7 +196,7 @@ foreach ($themePalette in @('Terminal', 'TrueColorDark', 'TrueColorLight')) {
     Assert-Equal $null $noColor.BackgroundRgb "$themePalette no-color mode emits no RGB background dependency"
 }
 
-$root = Get-LauncherRootView
+$root = Get-SampleRootView
 $rootFrame = Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -FocusedTargetId action.launch.release
 Assert-Equal Banner (Get-Segment -Frame $rootFrame -Predicate { param($s) $s.Text -eq 'Deckle Scripts' } -Case 'banner').PresentationRole 'the repository banner keeps its semantic role'
 Assert-Equal Section (Get-Segment -Frame $rootFrame -Predicate { param($s) $s.Text -eq 'RUN ' } -Case 'Run Section').PresentationRole 'Section titles are categories'
@@ -219,19 +217,19 @@ Assert-Equal Access (Get-Segment -Frame $rootFrame -Predicate { param($s) $s.Tex
 Assert-Equal $true (@($root.Sections | ForEach-Object { $_.Items } | Where-Object { $_.IntentKind -eq 'Access' -and -not $_.Label.EndsWith($ellipsis) }).Count -eq 0) 'every Access label carries the disclosure ellipsis'
 Assert-Equal Exit (Get-Segment -Frame $rootFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  Quit' } -Case 'Quit command').PresentationRole 'Quit retains its exceptional exit role'
 
-$projectFrame = Get-TerminalInteractionFrame -View (Get-LauncherProjectView) -Width 100 -Height 24 -FocusedTargetId navigation.back
+$projectFrame = Get-TerminalInteractionFrame -View (Get-SampleProjectView) -Width 100 -Height 24 -FocusedTargetId navigation.back
 Assert-Equal Context (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text -eq 'Project' } -Case 'View context').PresentationRole 'the View context owns its stable Header rail'
 Assert-Equal Navigation (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  < Back' } -Case 'Back Navigation Control').PresentationRole 'Back carries its direction independently from focus'
 Assert-Equal Action (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  README pulse' } -Case 'grouped independent Action').PresentationRole 'independent Actions in a compact group keep their Action role'
 
-$maintenanceFrame = Get-TerminalInteractionFrame -View (Get-LauncherMaintenanceView) -Width 100 -Height 30 -FocusedTargetId navigation.back
+$maintenanceFrame = Get-TerminalInteractionFrame -View (Get-SampleMaintenanceView) -Width 100 -Height 30 -FocusedTargetId navigation.back
 Assert-Equal Danger (Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  Reset AI session state' } -Case 'danger Action').PresentationRole 'destructive grouped Actions retain danger independently from activation'
 $statisticsGroup = Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text -eq 'Statistics' } -Case 'compact Action Group'
 Assert-Equal ActionLabel $statisticsGroup.PresentationRole 'a compact Action Group label titles its row as an Action Row label does'
 $repositoryStatistics = Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  Repository statistics' } -Case 'grouped Action'
 Assert-Equal Action $repositoryStatistics.PresentationRole 'grouped Actions stay distinct from Action Variants'
 
-$executionFrame = Get-TerminalInteractionFrame -View (Get-LauncherSnapshotView -Name Execution) -OwnerActionMenu $root -Width 120 -Height 24 -FocusedTargetId navigation.back -JournalOffset ([int]::MaxValue)
+$executionFrame = Get-TerminalInteractionFrame -View (Get-SampleSnapshotView -Name Execution) -OwnerActionMenu $root -Width 120 -Height 24 -FocusedTargetId navigation.back -JournalOffset ([int]::MaxValue)
 Assert-Equal PanelTitle (Get-Segment -Frame $executionFrame -Predicate { param($s) $s.Text -eq 'Execution Journal' } -Case 'Journal Panel title').PresentationRole 'Panel titles share the category hierarchy'
 Assert-Equal Success (Get-Segment -Frame $executionFrame -Predicate { param($s) $s.Text -match '^Result:' } -Case 'Execution Result').PresentationRole 'a completed Execution Result carries success semantics'
 Assert-Equal Supporting (Get-Segment -Frame $executionFrame -Predicate { param($s) $s.Text -eq '[ok] Accept intent' } -Case 'completed Tracking step').PresentationRole 'completed Tracking steps stay neutral beside the final Result'

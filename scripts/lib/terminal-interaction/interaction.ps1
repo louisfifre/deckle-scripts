@@ -36,8 +36,72 @@ function Set-TerminalDecision {
             return $false
         }
         'Exit' { return $true }
+        'Execute' {
+            # The Execution View is installed first, so the runner paints
+            # into a View that already owns the top of the stack.
+            $state = New-TerminalViewState -View $Decision.View
+            if ($Decision.Mode -eq 'Replace') {
+                $ViewStack[$ViewStack.Count - 1] = $state
+            } else {
+                $ViewStack.Add($state)
+            }
+            return $false
+        }
         default { throw "Unknown transition decision '$($Decision.Kind)'." }
     }
+}
+
+function Get-TerminalStateFrame {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[object]]$ViewStack,
+        [Parameter(Mandatory)][object]$State,
+        [Parameter(Mandatory)][object]$HostState
+    )
+
+    $metrics = Get-TerminalHostMetrics
+    $ownerActionMenu = Get-TerminalOwnerActionMenu -ViewStack $ViewStack -View $State.View
+    return Get-TerminalInteractionFrame `
+        -View $State.View `
+        -OwnerActionMenu $ownerActionMenu `
+        -Width $metrics.Width `
+        -Height $metrics.Height `
+        -FocusedTargetId $State.FocusedTargetId `
+        -SupportsUnicode ($HostState.UnicodeOutput -eq 'Supported') `
+        -ColorCapability $HostState.Color `
+        -BodyOffset $State.BodyOffset `
+        -JournalOffset $State.JournalOffset
+}
+
+function Invoke-TerminalExecution {
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.List[object]]$ViewStack,
+        [Parameter(Mandatory)][object]$Decision,
+        [Parameter(Mandatory)][object]$HostState,
+        [AllowNull()][object]$PreviousFrame
+    )
+
+    # The run owns the terminal until it ends: no input is read, the Journal
+    # follows its latest page, and keys pressed meanwhile are dropped so they
+    # never activate a target of the finished View.
+    $state = $ViewStack[$ViewStack.Count - 1]
+    $lastFrame = $PreviousFrame
+    $paint = {
+        param($view)
+        $state.View = $view
+        $state.JournalOffset = [int]::MaxValue
+        $frame = Get-TerminalStateFrame -ViewStack $ViewStack -State $state -HostState $HostState
+        Write-TerminalInteractionFrame -Frame $frame -HostState $HostState -PreviousFrame $lastFrame
+        $lastFrame = $frame
+    }.GetNewClosure()
+    & $paint $state.View
+    $final = & $Decision.Runner $paint
+    if ($null -ne $final) {
+        $state.View = $final
+        $state.JournalOffset = [int]::MaxValue
+    }
+    $state.FocusedTargetId = $null
+    Clear-TerminalHostInput -State $HostState
+    return $lastFrame
 }
 
 function Get-TerminalEscapeDecision {
@@ -253,6 +317,9 @@ function Start-TerminalInteraction {
                     }
                     $decision = & $IntentHandler $request $currentState.View
                     $exitRequested = Set-TerminalDecision -ViewStack $viewStack -Decision $decision
+                    if ($null -ne $decision -and $decision.Kind -eq 'Execute') {
+                        $previousFrame = Invoke-TerminalExecution -ViewStack $viewStack -Decision $decision -HostState $hostState -PreviousFrame $previousFrame
+                    }
                 }
                 'Spacebar' {
                     $target = Get-TerminalFocusedTarget -Frame $frame -FocusedTargetId $currentState.FocusedTargetId

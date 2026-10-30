@@ -370,6 +370,19 @@ function Get-TerminalHostMetrics {
     }
 }
 
+function Clear-TerminalHostInput {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][object]$State)
+
+    # KeyAvailable discards the non-key records it peeks, so wheel and
+    # resize events queued during a run go with the keys.
+    try {
+        while ([Console]::KeyAvailable) { [void][Console]::ReadKey($true) }
+    } catch {
+        # A host without a readable input buffer has nothing to clear.
+    }
+}
+
 function Read-TerminalHostEvent {
     [CmdletBinding()]
     param([Parameter(Mandatory)][object]$State)
