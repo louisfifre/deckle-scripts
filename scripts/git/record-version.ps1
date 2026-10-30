@@ -4,7 +4,6 @@
 .DESCRIPTION
     Records the next version as an annotated tag vX.Y.Z on HEAD, bumping the latest version tag of the repository. Preview by default; -Apply creates the tag. The tag is pushed only with -Push.
 .NOTES
-    section: Versions
     order: 100
     action: Record version | -Apply
 #>

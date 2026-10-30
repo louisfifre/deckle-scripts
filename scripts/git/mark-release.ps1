@@ -4,7 +4,6 @@
 .DESCRIPTION
     Marks the version of HEAD as published with an annotated tag release/vX.Y.Z on the same commit. HEAD must carry a version tag. Preview by default; -Apply creates the tag. The tag is pushed only with -Push.
 .NOTES
-    section: Versions
     order: 110
     action: Mark release | -Apply
 #>
