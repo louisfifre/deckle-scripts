@@ -35,7 +35,12 @@ $ErrorActionPreference = 'Stop'
 $LibDir = Split-Path -Parent $PSScriptRoot
 if (-not $ScriptsRoot) { $ScriptsRoot = Split-Path -Parent $LibDir }
 $ScriptsRoot = (Resolve-Path -LiteralPath $ScriptsRoot).ProviderPath
-$Banner = 'Deckle Scripts'
+# The logo opens every frame when the terminal has room for it; the Banner
+# beneath it then names the repository the menu serves.
+$Logo = @(
+    '█▀▄ █▀▀ █▀▀ █▄▀ █   █▀▀'
+    '█▄▀ █▄▄ █▄▄ █ █ █▄▄ █▄▄  SCRIPTS'
+)
 
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
 Import-Module (Join-Path $LibDir 'script-discovery.psm1') -Force
@@ -47,14 +52,36 @@ Import-Module (Join-Path $LibDir 'script-discovery.psm1') -Force
 function Get-LauncherRepositoryRoot {
     param([Parameter(Mandatory)][string]$Path)
 
-    $root = & git -C $Path rev-parse --show-toplevel 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($root)) {
-        throw "The scripts folder '$Path' is not inside a git repository, and the launcher asks git for the repository root."
+    # The nearest ancestor holding a .git entry is the repository root: a
+    # directory in a checkout, a file in a worktree or a submodule. Reading
+    # it costs nothing, where asking git takes a tenth of a second at every
+    # opening of the menu.
+    $directory = [IO.DirectoryInfo]$Path
+    while ($null -ne $directory) {
+        if (Test-Path -LiteralPath (Join-Path $directory.FullName '.git')) { return $directory.FullName }
+        $directory = $directory.Parent
     }
-    return ([string]$root).Trim() -replace '/', [IO.Path]::DirectorySeparatorChar
+    throw "The scripts folder '$Path' is not inside a git repository: no folder above it holds a .git entry."
+}
+
+function Get-LauncherRepositoryName {
+    param([Parameter(Mandatory)][string]$Root)
+
+    # A worktree is named after its subject, not after the repository: its
+    # .git file points into the main checkout's .git/worktrees, and the
+    # repository's folder is the one that holds that .git.
+    $gitEntry = Join-Path $Root '.git'
+    if (Test-Path -LiteralPath $gitEntry -PathType Leaf) {
+        $pointer = ([IO.File]::ReadAllText($gitEntry)).Trim()
+        if ($pointer -match '^gitdir:\s*(.+?)[/\\]\.git[/\\]worktrees[/\\][^/\\]+$') {
+            return Split-Path -Leaf $Matches[1]
+        }
+    }
+    return Split-Path -Leaf $Root
 }
 
 $RepositoryRoot = Get-LauncherRepositoryRoot -Path $ScriptsRoot
+$Banner = Get-LauncherRepositoryName -Root $RepositoryRoot
 # The library and the tests never enter the menu; a manifest folder starts
 # with a dot and is skipped by discovery itself.
 $Catalog = Get-ScriptCatalog -Path $ScriptsRoot -ExcludeFolder @('lib', 'tests')
@@ -163,7 +190,7 @@ if ($HostSmokeTest) {
     $smoke = Get-LauncherSnapshot -Name 'Menu'
     $module = Get-Module terminal-interaction
     & $module {
-        param($view, $ownerActionMenu, $focus, $palette)
+        param($view, $ownerActionMenu, $focus, $palette, $logo)
         $originalOutputCodePage = [Console]::OutputEncoding.CodePage
         $hostState = Start-TerminalHost -Palette $palette
         try {
@@ -176,7 +203,8 @@ if ($HostSmokeTest) {
                 -OwnerActionMenu $ownerActionMenu `
                 -Width $metrics.Width `
                 -Height $metrics.Height `
-                -FocusedTargetId $focus
+                -FocusedTargetId $focus `
+                -Logo $logo
             Write-TerminalInteractionFrame -Frame $frame -HostState $hostState
             Start-Sleep -Milliseconds 100
         } finally {
@@ -185,7 +213,7 @@ if ($HostSmokeTest) {
         if ([Console]::OutputEncoding.CodePage -ne $originalOutputCodePage) {
             throw 'The host smoke test did not restore the original console output encoding.'
         }
-    } $smoke.View $smoke.Owner $smoke.Focus $Palette
+    } $smoke.View $smoke.Owner $smoke.Focus $Palette $Logo
     return
 }
 
@@ -197,7 +225,8 @@ if ($Snapshot) {
         -Width $Width `
         -Height $Height `
         -FocusedTargetId $shot.Focus `
-        -JournalOffset ([int]::MaxValue)
+        -JournalOffset ([int]::MaxValue) `
+        -Logo $Logo
     foreach ($line in @(ConvertTo-TerminalFrameText -Frame $frame)) {
         [Console]::WriteLine($line)
     }
@@ -209,7 +238,7 @@ if ($Snapshot) {
 $ManifestPath = Join-Path $ScriptsRoot '.deckle-scripts\manifest.json'
 $ManifestStamp = if (Test-Path -LiteralPath $ManifestPath) { (Get-Item -LiteralPath $ManifestPath).LastWriteTimeUtc } else { $null }
 
-Start-TerminalInteraction -RootView (Get-LauncherRootView -Context $Context) -Palette $Palette -IntentHandler {
+Start-TerminalInteraction -RootView (Get-LauncherRootView -Context $Context) -Palette $Palette -Logo $Logo -IntentHandler {
     param($request, $sourceView)
     Resolve-LauncherIntent -Request $request -SourceView $sourceView -Context $Context
 }

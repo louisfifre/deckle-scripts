@@ -13,6 +13,7 @@ function Assert-True([bool]$Condition, [string]$Case) {
 
 # The entry serves any repository: the fixture scripts in a fresh one.
 $root = Join-Path ([IO.Path]::GetTempPath()) "launcher-entry-$([guid]::NewGuid())"
+$outside = Join-Path ([IO.Path]::GetTempPath()) "launcher-outside-$([guid]::NewGuid())"
 try {
     $scriptsRoot = Join-Path $root 'scripts'
     $null = New-Item -ItemType Directory -Path $scriptsRoot
@@ -61,6 +62,25 @@ try {
     Assert-True ($menu -match 'Quit') 'the Menu snapshot closes with Quit'
     $level = @(& pwsh -NoProfile -File $MenuPath -Snapshot Level -LevelPath tools -ScriptsRoot $scriptsRoot) -join "`n"
     Assert-True ($level -match 'Epsilon' -or $level -match 'epsilon') 'the Level snapshot shows a folder'
+    Assert-True ($menu -match 'SCRIPTS') 'the Menu snapshot opens with the logo'
+    Assert-True ($menu.Contains((Split-Path -Leaf $root))) 'the Banner names the repository folder'
+
+    # From a worktree the Banner still names the repository, not the subject.
+    & git -C $root add -A 2>&1 | Out-Null
+    & git -C $root -c user.name=Test -c user.email=test@example.invalid commit --quiet -m 'fixtures' 2>&1 | Out-Null
+    $worktree = Join-Path $outside 'subject'
+    & git -C $root worktree add --quiet $worktree 2>&1 | Out-Null
+    $fromWorktree = @(& pwsh -NoProfile -File $MenuPath -Snapshot Menu -ScriptsRoot (Join-Path $worktree 'scripts')) -join "`n"
+    Assert-Equal 0 $LASTEXITCODE 'the entry serves a worktree'
+    Assert-True ($fromWorktree.Contains((Split-Path -Leaf $root)) -and -not $fromWorktree.Contains('subject')) 'a worktree is named after its repository'
+    & git -C $root worktree remove --force $worktree 2>&1 | Out-Null
+
+    # Outside any repository the launcher has no root to run the scripts under.
+    $outsideScripts = Join-Path $outside 'scripts'
+    $null = New-Item -ItemType Directory -Path $outsideScripts
+    Copy-Item -Path (Join-Path $FixtureDir 'alpha.ps1') -Destination $outsideScripts
+    $null = @(& pwsh -NoProfile -File $MenuPath -List -ScriptsRoot $outsideScripts 2>&1)
+    Assert-True ($LASTEXITCODE -ne 0) 'a scripts folder outside a git repository is refused'
 
     # Windows PowerShell reads the entry and hands over to PowerShell 7.
     $legacy = Get-Command powershell.exe -ErrorAction SilentlyContinue
@@ -81,4 +101,5 @@ try {
     Write-Host 'launcher.tests.ps1: PASS' -ForegroundColor Green
 } finally {
     if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+    if (Test-Path -LiteralPath $outside) { Remove-Item -LiteralPath $outside -Recurse -Force }
 }
