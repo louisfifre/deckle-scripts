@@ -40,7 +40,7 @@ Assert-Equal $launchRelease.Y $launchDebug.Y 'Action Variants share their Action
 Assert-True ($launchRelease.X -lt $launchDebug.X) 'Release precedes Debug without semantic reordering'
 $runHeading = @($wide.Lines | ForEach-Object { $_.Segments } | Where-Object { $_.PresentationRole -eq 'Section' -and $_.Text -eq 'RUN ' })[0]
 $launchSubject = @($wide.Lines | ForEach-Object { $_.Segments } | Where-Object { $_.PresentationRole -eq 'ActionLabel' -and $_.Text -eq 'Launch' })[0]
-Assert-Equal ($runHeading.X + 1) $launchSubject.X 'Action Row subjects keep one cell of indentation beneath their Section'
+Assert-Equal ($runHeading.X + 2) $launchSubject.X 'Action Row subjects keep two cells of indentation beneath their Section'
 
 $maintenance = Get-Placement -Frame $wide -TargetId access.maintenance
 $setup = Get-Placement -Frame $wide -TargetId access.setup
@@ -293,7 +293,7 @@ Assert-Equal 0 $versionsFrame.Lines[$versionsMajor.Y + 1].Segments.Count 'the pa
 Assert-Equal $versionsPatch.X $previewChangelog.X 'the first independent Action takes the first grid column'
 Assert-Equal $previewChangelog.Y $writeChangelog.Y 'independent Actions fill the grid columns'
 Assert-Equal (Get-Placement -Frame $versionsFrame -TargetId action.bump.minor).X $writeChangelog.X 'independent Actions sit on the Variant columns'
-Assert-Equal (2 + 'Record version'.Length + 3) $versionsPatch.X 'independent Actions leave the label column to the Action Row'
+Assert-Equal (3 + 'Record version'.Length + 3) $versionsPatch.X 'independent Actions leave the label column to the Action Row'
 Assert-Equal $markRelease.Y $versionsQuit.Y 'Quit seats on the last line, beside the last independent Action'
 Assert-Equal 98 ($versionsQuit.X + $versionsQuit.Width) 'Quit keeps the right rail beside an independent Action'
 $versionsWrapped = Get-TerminalInteractionFrame -View $versionsMenu -Width 80 -Height 24 -FocusedTargetId action.bump.patch
