@@ -1,5 +1,18 @@
 # Execution Journal and Tracking Panel layout.
 
+function Get-TerminalJournalSegment {
+    param([Parameter(Mandatory)][AllowNull()][object]$Line)
+
+    # A Journal line is plain text or an object carrying its own role, as the
+    # action log classifies its records; the role is admitted presentation.
+    if ($null -ne $Line -and $null -ne $Line.PSObject.Properties['Text']) {
+        $roleProperty = $Line.PSObject.Properties['PresentationRole']
+        $role = if ($null -ne $roleProperty -and $roleProperty.Value) { [string]$roleProperty.Value } else { 'Body' }
+        return [pscustomobject]@{ Text = [string]$Line.Text; PresentationRole = $role }
+    }
+    return [pscustomobject]@{ Text = [string]$Line; PresentationRole = 'Body' }
+}
+
 function Get-TerminalTrackingLines {
     param([Parameter(Mandatory)][PSTypeName('DeckleScripts.TerminalInteraction.ExecutionView')][object]$View)
 
@@ -106,7 +119,8 @@ function Add-TerminalExecutionBody {
             $line = Add-TerminalFrameLine -Frame $Frame
             $journalIndex = $offset + $row
             if ($journalIndex -lt $View.JournalLines.Count) {
-                Add-TerminalFrameSegment -Frame $Frame -LineIndex $line -X 2 -Text (Limit-TerminalText -Text ([string]$View.JournalLines[$journalIndex]) -Width $journalWidth) -PresentationRole Body
+                $journalSegment = Get-TerminalJournalSegment -Line $View.JournalLines[$journalIndex]
+                Add-TerminalFrameSegment -Frame $Frame -LineIndex $line -X 2 -Text (Limit-TerminalText -Text $journalSegment.Text -Width $journalWidth) -PresentationRole $journalSegment.PresentationRole
             }
             Add-TerminalFrameSegment `
                 -Frame $Frame `
@@ -159,12 +173,13 @@ function Add-TerminalExecutionBody {
         $line = Add-TerminalFrameLine -Frame $Frame
         $journalIndex = $narrowOffset + $row
         if ($journalIndex -lt $View.JournalLines.Count) {
+            $journalSegment = Get-TerminalJournalSegment -Line $View.JournalLines[$journalIndex]
             Add-TerminalFrameSegment `
                 -Frame $Frame `
                 -LineIndex $line `
                 -X 2 `
-                -Text (Limit-TerminalText -Text ([string]$View.JournalLines[$journalIndex]) -Width $trackingWidth) `
-                -PresentationRole Body
+                -Text (Limit-TerminalText -Text $journalSegment.Text -Width $trackingWidth) `
+                -PresentationRole $journalSegment.PresentationRole
         }
     }
     if ($hasNarrowPages) {

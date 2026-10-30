@@ -1,5 +1,14 @@
-# Preview projection of a Script Discovery catalog into Action Menu descriptors.
-# It builds descriptors only; Actions still open the in-memory sample Execution.
+# Projection of a Script Discovery catalog into Action Menu descriptors.
+# It builds descriptors only; the intent handler in flows.ps1 acts on them.
+
+function New-LauncherBackTarget {
+    return New-TerminalTarget `
+        -TargetId 'navigation.back' `
+        -Label '< Back' `
+        -IntentKind Navigation `
+        -Payload ([pscustomobject]@{ Command = 'Back' }) `
+        -PresentationRole Navigation
+}
 
 function ConvertTo-LauncherIdPath {
     param([AllowEmptyString()][string]$RelativePath)
@@ -80,9 +89,17 @@ function ConvertTo-LauncherDiscoveredView {
         $sections.Add((New-TerminalSection -Label $catalogSection.Label -Items $items))
     }
 
+    # A folder with no described script beneath it is not offered: opening
+    # it would show nothing to run.
     $closingItems = [System.Collections.Generic.List[object]]::new()
-    foreach ($access in $Level.Accesses) { $closingItems.Add((New-LauncherDiscoveredAccessTarget -Level $access)) }
-    if ($IsRoot) { $closingItems.Add((New-LauncherQuitTarget)) }
+    foreach ($access in $Level.Accesses) {
+        if (-not $access.HasActions) { continue }
+        $closingItems.Add((New-LauncherDiscoveredAccessTarget -Level $access))
+    }
+    if ($IsRoot) {
+        $closingItems.Add((New-LauncherLogsAccessTarget))
+        $closingItems.Add((New-LauncherQuitTarget))
+    }
     if ($closingItems.Count -gt 0) {
         $sections.Add((New-TerminalSection -Label $null -Items @($closingItems)))
     }

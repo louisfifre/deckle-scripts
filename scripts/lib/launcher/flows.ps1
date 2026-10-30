@@ -1,121 +1,120 @@
-# Preview-only intent handling. No repository command is invoked here.
+# Intent handling of the launcher: every Intent Request becomes a Transition
+# Decision, or an Execute decision that the interaction core runs through the
+# runner it carries. Repository work happens only inside that runner.
 
-function New-LauncherExecution {
+function New-LauncherContext {
+    [CmdletBinding()]
     param(
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.ScriptDiscovery.Level')][object]$Catalog,
+        [Parameter(Mandatory)][string]$Banner,
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$ScriptsRoot
+    )
+
+    return [pscustomobject]@{
+        PSTypeName = 'DeckleScripts.Launcher.Context'
+        Catalog = $Catalog
+        Banner = $Banner
+        RepositoryRoot = $RepositoryRoot
+        ScriptsRoot = $ScriptsRoot
+        Logs = New-LauncherLogsRegister
+        NextSequence = 1
+    }
+}
+
+function Get-LauncherRootView {
+    param([Parameter(Mandatory)][PSTypeName('DeckleScripts.Launcher.Context')][object]$Context)
+
+    return ConvertTo-LauncherDiscoveredView -Level $Context.Catalog -Banner $Context.Banner -IsRoot
+}
+
+function New-LauncherExecuteDecision {
+    param(
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.Launcher.Context')][object]$Context,
         [Parameter(Mandatory)][object]$Action,
-        [Parameter(Mandatory)][string]$OwnerActionMenuId
+        [Parameter(Mandatory)][string]$OwnerActionMenuId,
+        [Parameter(Mandatory)][ValidateSet('Open', 'Replace')][string]$Mode
     )
 
-    $variantLabel = if ($Action.Variant) { " / $($Action.Variant)" } else { '' }
-    $journal = [System.Collections.Generic.List[object]]::new()
-    $journal.Add('[preview] No repository command was started.')
-    $journal.Add("[intent] Action $($Action.ActionId)$variantLabel")
-    $journal.Add('[core] Intent Request accepted by the Deckle preview handler.')
-    $journal.Add('[runtime] Installed an in-memory Execution View.')
-    if ($Action.PSObject.Properties['PreparationRevision']) {
-        $journal.Add("[preparation] Frozen reviewed revision $($Action.PreparationRevision).")
+    $record = New-LauncherExecutionRecord -Action $Action -OwnerActionMenuId $OwnerActionMenuId -Sequence $Context.NextSequence
+    $Context.NextSequence++
+    Add-LauncherLogsRecord -Register $Context.Logs -Record $record
+    $banner = $Context.Banner
+    $scriptsRoot = $Context.ScriptsRoot
+    $repositoryRoot = $Context.RepositoryRoot
+    return [pscustomobject]@{
+        Kind = 'Execute'
+        Mode = $Mode
+        View = ConvertTo-LauncherExecutionView -Record $record -Banner $banner
+        # The core calls the runner with a paint callback that takes a View;
+        # the runner answers with the final View.
+        Runner = {
+            param([scriptblock]$Paint)
+            # GetNewClosure copies the local scope only, so the inner
+            # closure gets its own copy of what the outer one captured.
+            $paintBanner = $banner
+            $publish = { param($current) & $Paint (ConvertTo-LauncherExecutionView -Record $current -Banner $paintBanner) }.GetNewClosure()
+            $final = Invoke-LauncherExecution -Record $record -ScriptsRoot $scriptsRoot -RepositoryRoot $repositoryRoot -Publish $publish
+            return ConvertTo-LauncherExecutionView -Record $final -Banner $banner
+        }.GetNewClosure()
     }
-    $journal.Add('')
-    for ($index = 1; $index -le 28; $index++) {
-        $journal.Add(('[sample] Journal line {0:d2} keeps its complete logical value for clipping and paging validation.' -f $index))
-    }
-    $journal.Add('[sample] This deliberately long line should be clipped at the Journal Panel boundary without wrapping into the Tracking Panel or changing the stored value.')
-    $journal.Add('[preview] Completed safely.')
-
-    $tracking = @(
-        [pscustomobject]@{ Label = 'Accept intent'; State = 'Completed' }
-        [pscustomobject]@{ Label = 'Freeze request'; State = 'Completed' }
-        [pscustomobject]@{ Label = 'Render sample'; State = 'Completed' }
-    )
-    return New-TerminalExecutionView `
-        -ViewId "execution.$($Action.ActionId)" `
-        -Banner 'Deckle Scripts' `
-        -Context "$($Action.Label)$variantLabel" `
-        -State Completed `
-        -JournalLines @($journal) `
-        -TrackingSteps $tracking `
-        -Result 'Preview only; no repository changes.' `
-        -BackTarget (New-LauncherBackTarget) `
-        -OwnerActionMenuId $OwnerActionMenuId
 }
 
 function Resolve-LauncherIntent {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)][object]$Request,
         [Parameter(Mandatory)][object]$SourceView,
-        [string]$RepositoryRoot
+        [Parameter(Mandatory)][PSTypeName('DeckleScripts.Launcher.Context')][object]$Context
     )
 
     if ($Request.IntentKind -eq 'Command' -and $Request.TargetId -eq 'command.quit') {
         return [pscustomobject]@{ Kind = 'Exit' }
     }
+
     if ($Request.IntentKind -eq 'Access') {
-        return [pscustomobject]@{
-            Kind = 'OpenView'
-            View = Get-LauncherAccessView -AccessId $Request.Payload.AccessId
-        }
-    }
-    if ($Request.IntentKind -eq 'Adjust' -and $SourceView.Kind -eq 'Preparation') {
-        return [pscustomobject]@{
-            Kind = 'UpdateView'
-            View = Update-LauncherStatisticsPreparation -View $SourceView -Adjustment $Request.Payload
-        }
-    }
-    if ($Request.IntentKind -eq 'Action') {
-        $owner = if ($SourceView.Kind -eq 'ActionMenu') { $SourceView.ViewId } else { $SourceView.OwnerActionMenuId }
-        if ($SourceView.Kind -eq 'ActionMenu' -and $Request.Payload.ActionId -eq 'repository-stats') {
+        $accessId = [string]$Request.Payload.AccessId
+        if ($accessId -eq 'logs') {
+            $sequenceProperty = $Request.Payload.PSObject.Properties['Sequence']
+            if ($null -eq $sequenceProperty) {
+                return [pscustomobject]@{
+                    Kind = 'OpenView'
+                    View = ConvertTo-LauncherLogsView -Register $Context.Logs -Banner $Context.Banner -OwnerActionMenuId $SourceView.ViewId
+                }
+            }
+            # A run reopened from the Logs sits under the root menu, where the
+            # Logs live, whatever folder menu started it.
+            $record = Get-LauncherLogsRecord -Register $Context.Logs -Sequence ([int]$sequenceProperty.Value)
             return [pscustomobject]@{
                 Kind = 'OpenView'
-                View = New-LauncherStatisticsPreparation `
-                    -RepositoryRoot $RepositoryRoot `
-                    -OwnerActionMenuId $owner
+                View = ConvertTo-LauncherExecutionView -Record $record -Banner $Context.Banner -OwnerActionMenuId $SourceView.OwnerActionMenuId
             }
         }
-        if ($SourceView.Kind -eq 'Preparation') {
-            if ($Request.Payload.PreparationRevision -ne $SourceView.Revision) {
-                throw "Confirmation revision '$($Request.Payload.PreparationRevision)' is stale; current revision is '$($SourceView.Revision)'."
-            }
-            return [pscustomobject]@{
-                Kind = 'ReplaceView'
-                View = New-LauncherExecution -Action $Request.Payload -OwnerActionMenuId $owner
-            }
-        }
+        $level = Resolve-LauncherDiscoveredAccess -Catalog $Context.Catalog -AccessId $accessId
+        if ($null -eq $level) { throw "Unknown Access '$accessId'." }
         return [pscustomobject]@{
             Kind = 'OpenView'
-            View = New-LauncherExecution -Action $Request.Payload -OwnerActionMenuId $owner
+            View = ConvertTo-LauncherDiscoveredView -Level $level -Banner $Context.Banner
         }
     }
+
+    if ($Request.IntentKind -eq 'Action') {
+        # An Action with a confirmation sentence opens its Confirmation step
+        # first; the step's Danger choice then replaces it with the Execution,
+        # so Back after the run returns to the owning menu.
+        if ($SourceView.Kind -eq 'ActionMenu') {
+            if ($Request.Payload.Confirmation) {
+                return [pscustomobject]@{
+                    Kind = 'OpenView'
+                    View = New-LauncherConfirmationView -Action $Request.Payload -Banner $Context.Banner -OwnerActionMenuId $SourceView.ViewId
+                }
+            }
+            return New-LauncherExecuteDecision -Context $Context -Action $Request.Payload -OwnerActionMenuId $SourceView.ViewId -Mode Open
+        }
+        if (Test-LauncherConfirmationView -View $SourceView) {
+            return New-LauncherExecuteDecision -Context $Context -Action $Request.Payload -OwnerActionMenuId $SourceView.OwnerActionMenuId -Mode Replace
+        }
+    }
+
     return [pscustomobject]@{ Kind = 'Stay' }
-}
-
-function Get-LauncherSnapshotView {
-    param(
-        [Parameter(Mandatory)][ValidateSet('Menu', 'Project', 'Preparation', 'Execution')][string]$Name,
-        [string]$RepositoryRoot
-    )
-
-    switch ($Name) {
-        'Menu' { return Get-LauncherRootView }
-        'Project' { return Get-LauncherProjectView }
-        'Preparation' { return New-LauncherStatisticsPreparation -RepositoryRoot $RepositoryRoot }
-        'Execution' {
-            return New-LauncherExecution `
-                -Action ([pscustomobject]@{ ActionId = 'build'; Variant = 'Release'; Label = 'Build' }) `
-                -OwnerActionMenuId menu.root
-        }
-    }
-}
-
-function Get-LauncherOwnerActionMenu {
-    param([Parameter(Mandatory)][object]$View)
-
-    if ($View.Kind -eq 'ActionMenu') { return $View }
-    switch ($View.OwnerActionMenuId) {
-        'menu.root' { return Get-LauncherRootView }
-        'menu.project' { return Get-LauncherProjectView }
-        'menu.release' { return Get-LauncherReleaseView }
-        'menu.maintenance' { return Get-LauncherMaintenanceView }
-        'menu.setup' { return Get-LauncherSetupView }
-        default { throw "Unknown Deckle preview Action Menu '$($View.OwnerActionMenuId)'." }
-    }
 }

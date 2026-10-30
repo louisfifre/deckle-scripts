@@ -4,7 +4,7 @@ $LibDir = Join-Path $ScriptsDir 'lib'
 $FixtureDir = Join-Path $ScriptsDir 'tests\fixtures\script-discovery'
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
 Import-Module (Join-Path $LibDir 'script-discovery.psm1') -Force
-. (Join-Path $LibDir 'launcher\catalog.ps1')
+. (Join-Path $LibDir 'launcher\logs.ps1')
 . (Join-Path $LibDir 'launcher\discovered-catalog.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
@@ -59,11 +59,12 @@ Assert-Equal 'action.beta.0.release' $betaRow.Variants[0].TargetId 'Variant targ
 Assert-Equal 'Debug' $betaRow.Variants[1].Payload.Variant 'activating a Variant carries its value'
 
 $closing = @($sections[3].Items)
-Assert-Equal 'access.tools,access.zone,command.quit' ((@($closing) | ForEach-Object TargetId) -join ',') 'Accesses come last, Quit closes the root'
+Assert-Equal 'access.tools,access.zone,access.logs,command.quit' ((@($closing) | ForEach-Object TargetId) -join ',') 'Accesses come last, then Logs, Quit closes the root'
 Assert-Equal Access $closing[0].IntentKind 'a folder is an Access'
 Assert-Equal 'tools' $closing[0].Payload.AccessId 'the Access payload names the level path'
 Assert-True ($closing[0].Label.StartsWith('Tooling') -and $closing[0].Label.EndsWith([string][char]0x2026)) 'an Access label carries the level label and the ellipsis'
-Assert-Equal Exit $closing[2].PresentationRole 'Quit keeps the Exit role'
+Assert-Equal 'logs' $closing[2].Payload.AccessId 'the Logs Access carries its own id'
+Assert-Equal Exit $closing[3].PresentationRole 'Quit keeps the Exit role'
 
 $allTargets = @(Get-ViewTargets $root)
 $uniqueIds = @($allTargets | ForEach-Object TargetId | Sort-Object -Unique)

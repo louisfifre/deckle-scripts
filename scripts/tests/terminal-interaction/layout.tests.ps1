@@ -2,9 +2,7 @@ $ErrorActionPreference = 'Stop'
 $ScriptsDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $LibDir = Join-Path $ScriptsDir 'lib'
 Import-Module (Join-Path $LibDir 'terminal-interaction.psm1') -Force
-. (Join-Path $LibDir 'launcher\catalog.ps1')
-. (Join-Path $LibDir 'launcher\statistics-preparation.ps1')
-. (Join-Path $LibDir 'launcher\flows.ps1')
+. (Join-Path $ScriptsDir 'tests\fixtures\terminal-interaction\sample-views.ps1')
 
 function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
@@ -32,7 +30,7 @@ function Get-RoleLineIndex([object]$Frame, [string]$PresentationRole) {
     return $matches[0]
 }
 
-$root = Get-LauncherRootView
+$root = Get-SampleRootView
 $wide = Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -FocusedTargetId action.launch.release
 $wideText = @(ConvertTo-TerminalFrameText -Frame $wide)
 Assert-Equal 2 (Get-RoleLineIndex -Frame $wide -PresentationRole PrimarySeparator) 'the root Header keeps two stable content rails'
@@ -91,7 +89,7 @@ $previousPage = Get-Placement -Frame $shortLast -TargetId navigation.page.previo
 Assert-Equal $true $previousPage.Target.Enabled 'a later page exposes an enabled Previous target'
 Assert-Equal 1 @($shortLast.Targets | Where-Object { $_.TargetId -eq 'command.quit' }).Count 'the final page makes Quit reachable'
 
-$project = Get-LauncherProjectView
+$project = Get-SampleProjectView
 $projectFrame = Get-TerminalInteractionFrame -View $project -Width 100 -Height 24 -FocusedTargetId navigation.back
 $projectText = @(ConvertTo-TerminalFrameText -Frame $projectFrame) -join "`n"
 Assert-Equal 2 (Get-RoleLineIndex -Frame $projectFrame -PresentationRole PrimarySeparator) 'a nested Header keeps the same two content rails'
@@ -101,9 +99,8 @@ Assert-Equal $readmePulse.X $projectBack.X 'Back occupies the first option colum
 Assert-True ($projectText -match 'Backspace Back') 'a nested View advertises Backspace'
 Assert-True ($projectText -match 'Escape Back') 'a nested View advertises Escape as one-View navigation'
 
-$repositoryRoot = Split-Path -Parent $ScriptsDir
-$preparation = Get-LauncherSnapshotView -Name Preparation -RepositoryRoot $repositoryRoot
-$maintenanceView = Get-LauncherMaintenanceView
+$preparation = Get-SampleSnapshotView -Name Preparation
+$maintenanceView = Get-SampleMaintenanceView
 $maintenanceFrame = Get-TerminalInteractionFrame -View $maintenanceView -Width 100 -Height 48 -FocusedTargetId action.repository-stats
 $maintenanceText = @(ConvertTo-TerminalFrameText -Frame $maintenanceFrame) -join "`n"
 $repositoryStatistics = Get-Placement -Frame $maintenanceFrame -TargetId action.repository-stats
@@ -163,7 +160,7 @@ $runningText = @(ConvertTo-TerminalFrameText -Frame $runningFrame) -join "`n"
 Assert-True ($runningText -match 'Ctrl\+C Quit') 'a running Execution keeps emergency exit discoverable'
 Assert-True ($runningText -notmatch 'Enter Open|Backspace Back|Escape Back') 'a running Execution advertises no unavailable command'
 
-$execution = Get-LauncherSnapshotView -Name Execution
+$execution = Get-SampleSnapshotView -Name Execution
 $executionAlignment = Get-TerminalInteractionFrame -View $execution -OwnerActionMenu $root -Width 100 -Height 24 -FocusedTargetId navigation.back -JournalOffset ([int]::MaxValue)
 $executionBack = Get-Placement -Frame $executionAlignment -TargetId navigation.back
 Assert-Equal $launchRelease.X $executionBack.X 'Execution Back inherits the first option track of its owning Action Menu'
@@ -271,5 +268,64 @@ foreach ($line in $wide.Lines) {
     Assert-Equal $paintWidth $cursor 'runs cover the painted width exactly once'
 }
 Assert-Equal 1 $bannerRuns 'the banner paints as one run carrying its segment role'
+
+# Under an Action Row, the independent Actions of the Section fill the grid
+# columns after one blank line: they are Actions of their own, not more
+# Variants of the row above, and the gap says so without a heading.
+$versionActions = @(
+    New-TerminalTarget -TargetId action.preview-changelog -Label 'Preview changelog' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'preview-changelog' })
+    New-TerminalTarget -TargetId action.write-changelog -Label 'Write changelog' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'write-changelog' })
+    New-TerminalTarget -TargetId action.mark-release -Label 'Mark release' -IntentKind Action -Payload ([pscustomobject]@{ ActionId = 'mark-release' })
+)
+$quitTarget = New-TerminalTarget -TargetId command.quit -Label Quit -IntentKind Command -Payload ([pscustomobject]@{ Command = 'Exit' }) -PresentationRole Exit
+$versionsMenu = New-TerminalActionMenuView -ViewId menu.versions -Banner 'Versions' -Sections @(
+    New-TerminalSection -Label $null -Items (@(New-TerminalActionRow -Label 'Record version' -Variants $bumpVariants) + $versionActions + @($quitTarget))
+)
+$versionsFrame = Get-TerminalInteractionFrame -View $versionsMenu -Width 100 -Height 24 -FocusedTargetId action.bump.patch
+$versionsPatch = Get-Placement -Frame $versionsFrame -TargetId action.bump.patch
+$versionsMajor = Get-Placement -Frame $versionsFrame -TargetId action.bump.major
+$previewChangelog = Get-Placement -Frame $versionsFrame -TargetId action.preview-changelog
+$writeChangelog = Get-Placement -Frame $versionsFrame -TargetId action.write-changelog
+$markRelease = Get-Placement -Frame $versionsFrame -TargetId action.mark-release
+$versionsQuit = Get-Placement -Frame $versionsFrame -TargetId command.quit
+Assert-Equal ($versionsMajor.Y + 2) $previewChangelog.Y 'one blank line parts the independent Actions from the Action Row'
+Assert-Equal 0 $versionsFrame.Lines[$versionsMajor.Y + 1].Segments.Count 'the parting line is empty'
+Assert-Equal $versionsPatch.X $previewChangelog.X 'the first independent Action takes the first grid column'
+Assert-Equal $previewChangelog.Y $writeChangelog.Y 'independent Actions fill the grid columns'
+Assert-Equal (Get-Placement -Frame $versionsFrame -TargetId action.bump.minor).X $writeChangelog.X 'independent Actions sit on the Variant columns'
+Assert-Equal (2 + 'Record version'.Length + 3) $versionsPatch.X 'independent Actions leave the label column to the Action Row'
+Assert-Equal $markRelease.Y $versionsQuit.Y 'Quit seats on the last line, beside the last independent Action'
+Assert-Equal 98 ($versionsQuit.X + $versionsQuit.Width) 'Quit keeps the right rail beside an independent Action'
+$versionsWrapped = Get-TerminalInteractionFrame -View $versionsMenu -Width 80 -Height 24 -FocusedTargetId action.bump.patch
+$wrappedMajor = Get-Placement -Frame $versionsWrapped -TargetId action.bump.major
+$wrappedPreview = Get-Placement -Frame $versionsWrapped -TargetId action.preview-changelog
+$wrappedMark = Get-Placement -Frame $versionsWrapped -TargetId action.mark-release
+Assert-Equal ($wrappedMajor.Y + 2) $wrappedPreview.Y 'the blank line follows the last wrapped Variant line'
+Assert-Equal ($wrappedPreview.Y + 1) $wrappedMark.Y 'independent Actions wrap like Variants, with no further gap'
+Assert-Equal $wrappedPreview.X $wrappedMark.X 'a wrapped independent Action starts under the first column'
+$versionsNarrow = Get-TerminalInteractionFrame -View $versionsMenu -Width 60 -Height 30 -FocusedTargetId action.bump.patch
+$narrowMajor = Get-Placement -Frame $versionsNarrow -TargetId action.bump.major
+$narrowPreview = Get-Placement -Frame $versionsNarrow -TargetId action.preview-changelog
+Assert-Equal ($narrowMajor.Y + 2) $narrowPreview.Y 'a narrow terminal keeps the blank line under the last Variant'
+Assert-Equal $narrowMajor.X $narrowPreview.X 'a narrow terminal lists independent Actions on the Variant track'
+$maintenanceLike = New-TerminalActionMenuView -ViewId menu.plain -Banner 'Plain' -Sections @(
+    New-TerminalSection -Label $null -Items ($versionActions + @($quitTarget))
+)
+$plainFrame = Get-TerminalInteractionFrame -View $maintenanceLike -Width 100 -Height 24 -FocusedTargetId action.preview-changelog
+Assert-Equal ((Get-RoleLineIndex -Frame $plainFrame -PresentationRole PrimarySeparator) + 2) (Get-Placement -Frame $plainFrame -TargetId action.preview-changelog).Y 'without an Action Row above, independent Actions open the body with no gap'
+
+# A logo opens the Header when the terminal affords it: Unicode output, a
+# width that holds it, and twelve body lines left under the Header.
+$logo = @('XX XX', 'XX XX  SCRIPTS')
+$logoFrame = Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -FocusedTargetId action.launch.release -Logo $logo
+Assert-Equal 5 (Get-RoleLineIndex -Frame $logoFrame -PresentationRole PrimarySeparator) 'the logo and its gap lift the Header rails by three lines'
+Assert-Equal 'Banner' $logoFrame.Lines[0].Segments[0].PresentationRole 'the logo takes the Banner role'
+Assert-Equal 'XX XX  SCRIPTS' $logoFrame.Lines[1].Segments[0].Text 'the logo lines open the frame in order'
+Assert-Equal 0 $logoFrame.Lines[2].Segments.Count 'one blank line separates the logo from the title line'
+Assert-Equal ($launchRelease.Y + 3) (Get-Placement -Frame $logoFrame -TargetId action.launch.release).Y 'the body follows the logo'
+Assert-Equal 5 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 100 -Height 18 -Logo $logo) -PresentationRole PrimarySeparator) 'eighteen lines still afford the logo'
+Assert-Equal 2 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 100 -Height 17 -Logo $logo) -PresentationRole PrimarySeparator) 'a shorter terminal drops the logo before the body'
+Assert-Equal 2 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 100 -Height 24 -Logo $logo -SupportsUnicode $false) -PresentationRole PrimarySeparator) 'an ASCII-only host draws no logo'
+Assert-Equal 2 (Get-RoleLineIndex -Frame (Get-TerminalInteractionFrame -View $root -Width 20 -Height 24 -Logo @('X' * 30)) -PresentationRole PrimarySeparator) 'a terminal narrower than the logo draws none'
 
 Write-Host 'layout.tests.ps1: PASS' -ForegroundColor Green
