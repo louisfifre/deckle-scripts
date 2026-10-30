@@ -29,7 +29,9 @@ function Write-ActionSummary {
     if ($Details) {
         foreach ($key in $Details.Keys) {
             $value = $Details[$key]
-            if ($null -eq $value -or $value -eq '') { continue }
+            # A numeric 0 equals '' under PowerShell's loose comparison, so
+            # the test goes through the string form to keep "Removed: 0".
+            if ($null -eq $value -or [string]::IsNullOrEmpty([string]$value)) { continue }
             if ($value -is [array]) { $value = $value -join ', ' }
             $detailRows += [pscustomobject]@{ Label = [string]$key; Value = $value }
         }
