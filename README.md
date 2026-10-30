@@ -1,9 +1,9 @@
 # Deckle Scripts
 
-A terminal menu for the scripts of a repository, with the packs of scripts
-a repository needs from its first day: setup, git and versions, maintenance,
-.NET. It runs on Windows under PowerShell 7 and installs into any git
-repository as a vendored `scripts/` folder, updated from here.
+A terminal menu that offers the scripts of a repository, with the packs of
+scripts a repository needs from its first day: setup, git and versions,
+maintenance, .NET. It runs under PowerShell 7 on Windows and installs into
+any git repository as a vendored `scripts/` folder, updated from this repository.
 
 ## Install
 
@@ -48,5 +48,9 @@ Variants. A folder is a level, labelled by the front matter of its
   `pwsh -NoProfile -File` and prints `PASS`.
 - `TERMINAL-INTERACTION-SPEC.md` and `GLOSSARY.md` name the concepts of the
   menu.
-- The version is the highest annotated `vX.Y.Z` tag; `git/record-version.ps1`
-  records the next one, `git/mark-release.ps1` marks it published.
+- The version is the highest annotated `vX.Y.Z` tag; `scripts/git/record-version.ps1`
+  records the next one, `scripts/git/mark-release.ps1` marks it published.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
