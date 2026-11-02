@@ -40,7 +40,7 @@ function New-SourceFixture([string]$Root) {
         $null = New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force
         Copy-Item -LiteralPath (Join-Path $script:RealScriptsDir "lib/$name") -Destination $destination
     }
-    Copy-Item -LiteralPath (Join-Path $script:RealScriptsDir 'update.ps1') -Destination (Join-Path $Root 'scripts/update.ps1')
+    Copy-Item -LiteralPath (Join-Path $script:RealScriptsDir 'settings/update.ps1') -Destination (New-Item -ItemType Directory -Path (Join-Path $Root 'scripts/settings') -Force | Join-Path -ChildPath 'update.ps1')
     Set-FixtureFile $Root 'scripts/menu.ps1' "# menu`n"
     Set-FixtureFile $Root 'scripts/lib/sample.ps1' "# sample v1`n"
     Set-FixtureFile $Root 'scripts/alpha/one.ps1' "# one`n"

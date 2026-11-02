@@ -59,12 +59,75 @@ Assert-Equal 'action.beta.0.release' $betaRow.Variants[0].TargetId 'Variant targ
 Assert-Equal 'Debug' $betaRow.Variants[1].Payload.Variant 'activating a Variant carries its value'
 
 $closing = @($sections[3].Items)
-Assert-Equal 'access.tools,access.zone,access.logs,command.quit' ((@($closing) | ForEach-Object TargetId) -join ',') 'Accesses come last, then Logs, Quit closes the root'
+Assert-Equal 'access.tools,access.zone' ((@($closing) | ForEach-Object TargetId) -join ',') 'Accesses come last'
 Assert-Equal Access $closing[0].IntentKind 'a folder is an Access'
 Assert-Equal 'tools' $closing[0].Payload.AccessId 'the Access payload names the level path'
 Assert-True ($closing[0].Label.StartsWith('Tooling') -and $closing[0].Label.EndsWith([string][char]0x2026)) 'an Access label carries the level label and the ellipsis'
-Assert-Equal 'logs' $closing[2].Payload.AccessId 'the Logs Access carries its own id'
-Assert-Equal Exit $closing[3].PresentationRole 'Quit keeps the Exit role'
+$trailing = @($sections[3].Trailing)
+Assert-Equal 'access.logs,command.quit' ((@($trailing) | ForEach-Object TargetId) -join ',') 'Logs then Quit trail the root Accesses'
+Assert-Equal 'logs' $trailing[0].Payload.AccessId 'the Logs Access carries its own id'
+Assert-Equal Action $trailing[0].PresentationRole 'Logs reads as body text, apart from the folders'
+Assert-Equal Exit $trailing[1].PresentationRole 'Quit keeps the Exit role'
+
+$rootFrame = Get-TerminalInteractionFrame -View $root -Width 100 -Height 40 -FocusedTargetId (Get-LauncherFirstTargetId -View $root)
+$logsPlacement = @($rootFrame.Targets | Where-Object TargetId -eq 'access.logs')[0]
+$quitPlacement = @($rootFrame.Targets | Where-Object TargetId -eq 'command.quit')[0]
+$zonePlacement = @($rootFrame.Targets | Where-Object TargetId -eq 'access.zone')[0]
+Assert-Equal ($quitPlacement.Y - 1) $logsPlacement.Y 'Logs sits on the line above Quit'
+Assert-Equal $quitPlacement.X $logsPlacement.X 'Logs and Quit share the right-hand column'
+Assert-Equal $zonePlacement.Y $quitPlacement.Y 'Quit sits on the last line of the Accesses'
+Assert-True ($zonePlacement.X + $zonePlacement.Width -lt $quitPlacement.X) 'an Access never runs under Quit'
+
+# Named rows: the cells that name one row, across the scripts of a folder,
+# share that row; a row of Danger cells only sorts after the others; the
+# Settings folder closes the Accesses whatever its order.
+$rowsRoot = Join-Path ([IO.Path]::GetTempPath()) "discovered-rows-$([guid]::NewGuid())"
+try {
+    $null = New-Item -ItemType Directory -Path (Join-Path $rowsRoot 'settings'), (Join-Path $rowsRoot 'zed') -Force
+    $header = {
+        param([string]$Synopsis, [string[]]$Notes)
+        "<#`n.SYNOPSIS`n    $Synopsis`n.NOTES`n$(($Notes | ForEach-Object { "    $_" }) -join "`n")`n#>`n[CmdletBinding()]`nparam([switch]`$Apply)`n"
+    }
+    Set-Content -LiteralPath (Join-Path $rowsRoot 'build.ps1') -Value (& $header 'Clean the build' @('order: 10', 'action: Preview / build |', 'action: Clean / build | -Apply | danger'))
+    Set-Content -LiteralPath (Join-Path $rowsRoot 'cache.ps1') -Value (& $header 'Clean the cache' @('order: 20', 'action: Preview / cache |', 'action: Clean / cache | -Apply | danger'))
+    Set-Content -LiteralPath (Join-Path $rowsRoot 'settings\README.md') -Value "---`nname: Settings`norder: 1`n---"
+    Set-Content -LiteralPath (Join-Path $rowsRoot 'settings\check.ps1') -Value (& $header 'Check' @('order: 1'))
+    Set-Content -LiteralPath (Join-Path $rowsRoot 'zed\README.md') -Value "---`nname: Zed`norder: 50`n---"
+    Set-Content -LiteralPath (Join-Path $rowsRoot 'zed\z.ps1') -Value (& $header 'Zed' @('order: 1'))
+
+    $rowsCatalog = Get-ScriptCatalog -Path $rowsRoot
+    $rowsView = ConvertTo-LauncherDiscoveredView -Level $rowsCatalog -Banner 'Rows' -IsRoot
+    $rowItems = @($rowsView.Sections[0].Items)
+    Assert-Equal 'Preview,Clean' ((@($rowItems) | ForEach-Object Label) -join ',') 'the Danger-only row sorts after the other row'
+    Assert-Equal 'build,cache' ((@($rowItems[0].Variants) | ForEach-Object Label) -join ',') 'a named row gathers its cells across scripts, in script order'
+    Assert-Equal 'action.build.0,action.cache.0' ((@($rowItems[0].Variants) | ForEach-Object TargetId) -join ',') 'each cell stays the Action of its own script'
+    Assert-Equal 'Danger,Danger' ((@($rowItems[1].Variants) | ForEach-Object PresentationRole) -join ',') 'a Danger cell keeps its role inside a row'
+    Assert-Equal 'Clean / cache' $rowItems[1].Variants[1].Payload.Label 'a cell names its row and itself wherever the Action is shown alone'
+    Assert-Equal 'access.zed,access.settings' ((@($rowsView.Sections[1].Items) | ForEach-Object TargetId) -join ',') 'Settings closes the Accesses whatever its order'
+
+    # With a single line of Accesses, Logs takes the blank line above them.
+    $rowsFrame = Get-TerminalInteractionFrame -View $rowsView -Width 100 -Height 30 -FocusedTargetId (Get-LauncherFirstTargetId -View $rowsView)
+    $rowsLogs = @($rowsFrame.Targets | Where-Object TargetId -eq 'access.logs')[0]
+    $rowsQuit = @($rowsFrame.Targets | Where-Object TargetId -eq 'command.quit')[0]
+    $rowsClean = @($rowsFrame.Targets | Where-Object TargetId -eq 'action.build.1')[0]
+    Assert-Equal ($rowsQuit.Y - 1) $rowsLogs.Y 'Logs sits above Quit when the Accesses hold one line'
+    Assert-True ($rowsLogs.Y -gt $rowsClean.Y) 'Logs never climbs onto a row of Actions'
+} finally {
+    Remove-Item -LiteralPath $rowsRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# A root with nothing to offer, Settings folder missing included, still opens
+# on Logs and Quit.
+$emptyRoot = Join-Path ([IO.Path]::GetTempPath()) "discovered-empty-$([guid]::NewGuid())"
+try {
+    $null = New-Item -ItemType Directory -Path $emptyRoot -Force
+    $emptyView = ConvertTo-LauncherDiscoveredView -Level (Get-ScriptCatalog -Path $emptyRoot) -Banner 'Empty' -IsRoot
+    Assert-Equal 'access.logs' (Get-LauncherFirstTargetId -View $emptyView) 'an empty root focuses Logs first'
+    $emptyFrame = Get-TerminalInteractionFrame -View $emptyView -Width 80 -Height 20 -FocusedTargetId (Get-LauncherFirstTargetId -View $emptyView)
+    Assert-Equal 1 @($emptyFrame.Targets | Where-Object TargetId -eq 'command.quit').Count 'an empty root still offers Quit'
+} finally {
+    Remove-Item -LiteralPath $emptyRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 $allTargets = @(Get-ViewTargets $root)
 $uniqueIds = @($allTargets | ForEach-Object TargetId | Sort-Object -Unique)

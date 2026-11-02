@@ -41,7 +41,7 @@ $palette = @{
     Banner = [ConsoleColor]::Blue
     Context = [ConsoleColor]::DarkGray
     Section = [ConsoleColor]::Magenta
-    SectionSeparator = [ConsoleColor]::Gray
+    SectionSeparator = [ConsoleColor]::DarkGray
     ActionLabel = [ConsoleColor]::Cyan
     Access = [ConsoleColor]::DarkYellow
     Navigation = [ConsoleColor]::DarkGray
@@ -88,7 +88,6 @@ $figmaRoles = @(
     [pscustomobject]@{ Role = 'Adjust'; Dark = '204,204,204'; Light = '83,83,83' },
     [pscustomobject]@{ Role = 'Navigation'; Dark = '204,204,204'; Light = '83,83,83' },
     [pscustomobject]@{ Role = 'CommandKey'; Dark = '204,204,204'; Light = '83,83,83' },
-    [pscustomobject]@{ Role = 'SectionSeparator'; Dark = '255,255,255'; Light = '53,53,53' },
     [pscustomobject]@{ Role = 'PanelSeparator'; Dark = '204,204,204'; Light = '83,83,83' }
 )
 foreach ($expectedRole in $figmaRoles) {
@@ -99,7 +98,7 @@ foreach ($expectedRole in $figmaRoles) {
     Assert-Rgb '1,22,39' $darkStyle.BackgroundRgb "$($expectedRole.Role) uses the Figma dark surface"
     Assert-Rgb '246,246,246' $lightStyle.BackgroundRgb "$($expectedRole.Role) uses the Figma light surface"
 }
-foreach ($mutedRole in @('Context', 'Supporting', 'PrimarySeparator', 'PagingSeparator', 'Separator', 'CommandLabel')) {
+foreach ($mutedRole in @('Context', 'Supporting', 'SectionSeparator', 'PrimarySeparator', 'PagingSeparator', 'Separator', 'CommandLabel')) {
     $mutedStyle = Get-TerminalPresentationStyle -Role $mutedRole -Palette TrueColorDark
     Assert-Equal $null $mutedStyle.ForegroundRgb "$mutedRole keeps its distinct muted neutral"
 }
@@ -220,12 +219,10 @@ Assert-Equal Exit (Get-Segment -Frame $rootFrame -Predicate { param($s) $s.Text.
 $projectFrame = Get-TerminalInteractionFrame -View (Get-SampleProjectView) -Width 100 -Height 24 -FocusedTargetId navigation.back
 Assert-Equal Context (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text -eq 'Project' } -Case 'View context').PresentationRole 'the View context owns its stable Header rail'
 Assert-Equal Navigation (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  < Back' } -Case 'Back Navigation Control').PresentationRole 'Back carries its direction independently from focus'
-Assert-Equal Action (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  README pulse' } -Case 'grouped independent Action').PresentationRole 'independent Actions in a compact group keep their Action role'
+Assert-Equal Action (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  README pulse' } -Case 'nested independent Action').PresentationRole 'independent Actions of a nested Section keep their Action role'
 
 $maintenanceFrame = Get-TerminalInteractionFrame -View (Get-SampleMaintenanceView) -Width 100 -Height 30 -FocusedTargetId navigation.back
 Assert-Equal Danger (Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  Reset AI session state' } -Case 'danger Action').PresentationRole 'destructive grouped Actions retain danger independently from activation'
-$statisticsGroup = Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text -eq 'Statistics' } -Case 'compact Action Group'
-Assert-Equal ActionLabel $statisticsGroup.PresentationRole 'a compact Action Group label titles its row as an Action Row label does'
 $repositoryStatistics = Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  Repository statistics' } -Case 'grouped Action'
 Assert-Equal Action $repositoryStatistics.PresentationRole 'grouped Actions stay distinct from Action Variants'
 

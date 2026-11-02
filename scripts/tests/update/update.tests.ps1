@@ -8,14 +8,14 @@ try {
     $target = Join-Path $root 'target'
     New-SourceFixture $source
     New-TargetFixture $target
-    $sourceUpdate = Join-Path $source 'scripts/update.ps1'
+    $sourceUpdate = Join-Path $source 'scripts/settings/update.ps1'
     $manifestPath = Join-Path $target 'scripts/.deckle-scripts/manifest.json'
 
     # Preview prints the plan and creates nothing.
     $preview = Invoke-Script $sourceUpdate @('-Target', $target)
     Assert-Equal 0 $preview.ExitCode 'a preview succeeds'
     Assert-True ($preview.Text -match 'Add \(\d+\)') 'the preview lists the files to add'
-    foreach ($path in @('scripts/menu.ps1', 'scripts/update.ps1', 'scripts/lib/sample.ps1', 'scripts/alpha/one.ps1', 'scripts/beta/two.ps1')) {
+    foreach ($path in @('scripts/menu.ps1', 'scripts/settings/update.ps1', 'scripts/lib/sample.ps1', 'scripts/alpha/one.ps1', 'scripts/beta/two.ps1')) {
         Assert-True ($preview.Text -match [regex]::Escape($path)) "the preview names $path"
     }
     Assert-True ($preview.Text -notmatch 'scripts/tests') 'the tests are never part of the plan'
@@ -25,7 +25,7 @@ try {
     # Apply installs the owned files and writes the manifest.
     $apply = Invoke-Script $sourceUpdate @('-Target', $target, '-Apply')
     Assert-Equal 0 $apply.ExitCode 'an apply succeeds'
-    foreach ($path in @('scripts/menu.ps1', 'scripts/update.ps1', 'scripts/lib/version.ps1', 'scripts/lib/sample.ps1', 'scripts/alpha/one.ps1', 'scripts/beta/two.ps1')) {
+    foreach ($path in @('scripts/menu.ps1', 'scripts/settings/update.ps1', 'scripts/lib/version.ps1', 'scripts/lib/sample.ps1', 'scripts/alpha/one.ps1', 'scripts/beta/two.ps1')) {
         Assert-True (Test-Path -LiteralPath (Join-Path $target $path)) "$path is installed"
     }
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $target 'scripts/tests'))) 'scripts/tests is never installed'
@@ -71,7 +71,7 @@ try {
     # Not committed: a tagged install must ignore the working tree.
     Set-FixtureFile $source 'scripts/alpha/stray.ps1' "# stray`n"
 
-    $targetUpdate = Join-Path $target 'scripts/update.ps1'
+    $targetUpdate = Join-Path $target 'scripts/settings/update.ps1'
     $second = Invoke-Script $targetUpdate @('-Version', '0.2.0')
     Assert-Equal 0 $second.ExitCode 'the installed update previews'
     Assert-True ($second.Text -match 'Update \(1\)') 'the preview lists the changed file'

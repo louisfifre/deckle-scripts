@@ -1,8 +1,8 @@
 # Deckle Scripts
 
 A terminal menu that offers the scripts of a repository, with the packs of
-scripts a repository needs from its first day: setup, git and versions,
-maintenance, .NET. It runs under PowerShell 7 on Windows and installs into
+scripts a repository needs from its first day: setup, versions and
+maintenance. It runs under PowerShell 7 on Windows and installs into
 any git repository as a vendored `scripts/` folder, updated from this repository.
 
 ## Install
@@ -20,8 +20,9 @@ Then open the menu:
 ```
 
 The menu discovers every script under `scripts/` that carries a Header, and
-offers the folders as levels. `scripts/update.ps1` checks for and applies
-the next version; `scripts/check-scripts.ps1` reports the scripts the menu
+offers the folders as levels. Its Settings level holds the launcher's own
+scripts: `scripts/settings/update.ps1` checks for and applies the next
+version; `scripts/settings/check-scripts.ps1` reports the scripts the menu
 would hide and the conventions they break.
 
 ## For a shell or an agent
@@ -37,8 +38,10 @@ would hide and the conventions they break.
 A script is offered once it carries a comment-based Header: `.SYNOPSIS` is
 its label, `.DESCRIPTION` its sentence, `.NOTES` holds `section`, `order`
 and the `action:` lines (`Label | arguments | danger | Confirmation
-sentence.`). A single `[ValidateSet]` string parameter becomes its
-Variants. A folder is a level, labelled by the front matter of its
+sentence.`); a label written `Row / cell` makes the Action one cell of a
+row the scripts of its folder share. A single `[ValidateSet]` string
+parameter becomes its Variants, and such a script fills its own rows.
+A folder is a level, labelled by the front matter of its
 `README.md`. A script without a Header stays hidden by choice.
 
 ## This repository
