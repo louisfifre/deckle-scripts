@@ -195,7 +195,16 @@ $body = $lines -join "`n"
 # and collide across branches at merge time. Without it an unchanged tree
 # regenerates a byte-identical file; git history already records when it
 # changed.
-$title = Split-Path -Leaf $repoRoot
+#
+# The title names the main checkout, read from the common git directory: a
+# linked worktree's own folder name would retitle the file at every commit
+# made from it, and the next commit on main would title it back.
+$commonDir = & git -C $repoRoot rev-parse --path-format=absolute --git-common-dir 2>$null
+$title = if ($LASTEXITCODE -eq 0 -and $commonDir) {
+    Split-Path -Leaf (Split-Path -Parent ([string]$commonDir).Trim())
+} else {
+    Split-Path -Leaf $repoRoot
+}
 $fence = '```'
 $content = @(
     "# Tree — $title"

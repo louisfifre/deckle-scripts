@@ -67,6 +67,21 @@ try {
     Assert-True ($stale.Text -match 'Changed\s*:\s*yes') 'the preview notices a new tracked file'
     Assert-True (-not ([IO.File]::ReadAllText($treePath)).Contains('more.md')) 'the preview leaves TREE.md alone'
 
+    # A linked worktree is titled after the main checkout, so a commit made
+    # from it never retitles TREE.md.
+    & git -C $root -c user.name=Test -c user.email=test@example.invalid commit --quiet -m 'first' 2>$null
+    $linked = Join-Path ([IO.Path]::GetTempPath()) "update-tree-linked-$([guid]::NewGuid())"
+    try {
+        & git -C $root worktree add --quiet $linked 2>$null
+        $linkedRun = Invoke-UpdateTree @('-Target', $linked, '-Apply')
+        Assert-Equal 0 $linkedRun.ExitCode 'apply succeeds in a linked worktree'
+        $linkedTree = [IO.File]::ReadAllText((Join-Path $linked 'TREE.md'))
+        Assert-True ($linkedTree.StartsWith("# Tree — $folderName`n")) 'a linked worktree is titled after the main checkout'
+    } finally {
+        & git -C $root worktree remove --force $linked 2>$null
+        if (Test-Path -LiteralPath $linked) { Remove-Item -LiteralPath $linked -Recurse -Force }
+    }
+
     # Failure: a folder that is not a repository.
     $plain = Join-Path ([IO.Path]::GetTempPath()) "update-tree-plain-$([guid]::NewGuid())"
     try {
