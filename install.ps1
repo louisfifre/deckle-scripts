@@ -3,7 +3,7 @@
 #   pwsh -File install.ps1
 # Windows PowerShell 5.1 may run this file: it stays ASCII, takes no param block
 # (iex cannot pass arguments) and uses no PowerShell 7 syntax. The real work is
-# scripts/update.ps1, which this file only fetches and starts.
+# scripts/settings/update.ps1, which this file only fetches and starts.
 
 $SourceUrl = 'https://github.com/louisfifre/deckle-scripts.git'
 
@@ -27,7 +27,7 @@ $exitCode = & {
     try {
         $log = @(git clone --quiet --depth 1 --branch $tag $SourceUrl $temp 2>&1)
         if ($LASTEXITCODE -ne 0) { Say "Git could not fetch ${tag}: $($log -join ' ')"; return 1 }
-        $update = Join-Path $temp 'scripts\update.ps1'
+        $update = Join-Path $temp 'scripts\settings\update.ps1'
         # Start-Process keeps the console, so the update prints in color as it runs.
         $arguments = '-NoProfile -File "' + $update + '" -Target "' + $target[0] + '" -Source "' + $SourceUrl + '" -Version ' + $tag + ' -Apply'
         $process = Start-Process -FilePath 'pwsh' -ArgumentList $arguments -NoNewWindow -Wait -PassThru

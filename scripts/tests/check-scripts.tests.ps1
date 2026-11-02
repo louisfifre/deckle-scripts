@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $ScriptsDir = Split-Path -Parent $PSScriptRoot
-$CommandPath = Join-Path $ScriptsDir 'check-scripts.ps1'
+$CommandPath = Join-Path $ScriptsDir 'settings/check-scripts.ps1'
 $FixtureDir = Join-Path $ScriptsDir 'tests\fixtures\script-discovery'
 
 function Assert-True([bool]$Condition, [string]$Case) {

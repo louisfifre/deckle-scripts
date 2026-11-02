@@ -48,9 +48,9 @@ Assert-True ($list.EndsWith('+ 2 more')) 'the list cuts at the limit and counts 
 Assert-Equal 'dotnet#1 (MSBuild, 1.0 MB)' (Format-DotnetBuildServerList -Processes @($processes[0])) 'one process is listed alone'
 
 # The script is described in the menu, as a danger action with its sentence.
-$header = Read-ScriptHeader -Path (Join-Path $ScriptsDir 'dotnet\stop-build-servers.ps1')
+$header = Read-ScriptHeader -Path (Join-Path $ScriptsDir 'maintenance\stop-build-servers.ps1')
 Assert-Equal 'Described' $header.Status 'the stop script has a valid Header'
-Assert-Equal '.NET' $header.Section 'the stop script sits in the .NET section'
+Assert-Equal 'Clean' $header.Actions[0].Row 'the stop script is a cell of the Clean row'
 Assert-Equal 1 @($header.Actions).Count 'the stop script declares one action'
 Assert-True $header.Actions[0].Danger 'stopping build servers is a danger action'
 Assert-True (-not [string]::IsNullOrWhiteSpace($header.Actions[0].Confirmation)) 'the danger action names what it does'

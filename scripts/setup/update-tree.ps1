@@ -1,17 +1,12 @@
-<#
-.SYNOPSIS
-    Regenerate TREE.md
-.DESCRIPTION
-    Writes the repository tree from git ls-files, annotating Markdown files with
-    their front matter and scripts with their Header. Serves the pre-commit hook
-    and direct runs. The preview reports whether TREE.md would change and writes
-    nothing.
-.NOTES
-    section: Repository
-    order: 120
-    action: Preview tree |
-    action: Regenerate TREE.md | -Apply
-#>
+# update-tree.ps1 - Regenerate TREE.md.
+#
+# Writes the repository tree from git ls-files, annotating Markdown files with
+# their front matter and scripts with their Header. Serves the pre-commit hook
+# and direct runs. The preview reports whether TREE.md would change and writes
+# nothing.
+#
+# Kept out of the launcher menu on purpose, with a plain comment instead of a
+# Header: the pre-commit hook regenerates the tree at every commit.
 
 [CmdletBinding()]
 param(
