@@ -52,7 +52,7 @@ Assert-Equal `
     (Move-TerminalFocus -Frame $narrow -CurrentTargetId action.launch.release -Direction Left) `
     'Left stays put when narrow layout has no peer on the row'
 
-$short = Get-TerminalInteractionFrame -View $root -Width 60 -Height 14 -FocusedTargetId action.build-run.debug
+$short = Get-TerminalInteractionFrame -View $root -Width 60 -Height 13 -FocusedTargetId action.build-run.debug
 Assert-Equal `
     navigation.page.next `
     (Move-TerminalFocus -Frame $short -CurrentTargetId action.build-run.debug -Direction Down) `
