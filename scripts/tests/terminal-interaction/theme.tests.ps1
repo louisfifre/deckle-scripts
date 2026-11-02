@@ -219,7 +219,7 @@ Assert-Equal Exit (Get-Segment -Frame $rootFrame -Predicate { param($s) $s.Text.
 $projectFrame = Get-TerminalInteractionFrame -View (Get-SampleProjectView) -Width 100 -Height 24 -FocusedTargetId navigation.back
 Assert-Equal Context (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text -eq 'Project' } -Case 'View context').PresentationRole 'the View context owns its stable Header rail'
 Assert-Equal Navigation (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  < Back' } -Case 'Back Navigation Control').PresentationRole 'Back carries its direction independently from focus'
-Assert-Equal Action (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  README pulse' } -Case 'grouped independent Action').PresentationRole 'independent Actions in a compact group keep their Action role'
+Assert-Equal Action (Get-Segment -Frame $projectFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  README pulse' } -Case 'nested independent Action').PresentationRole 'independent Actions of a nested Section keep their Action role'
 
 $maintenanceFrame = Get-TerminalInteractionFrame -View (Get-SampleMaintenanceView) -Width 100 -Height 30 -FocusedTargetId navigation.back
 Assert-Equal Danger (Get-Segment -Frame $maintenanceFrame -Predicate { param($s) $s.Text.TrimEnd() -eq '  Reset AI session state' } -Case 'danger Action').PresentationRole 'destructive grouped Actions retain danger independently from activation'

@@ -229,7 +229,7 @@ function Add-TerminalSectionHeading {
 function ConvertTo-TerminalMenuLayoutSections {
     param(
         [Parameter(Mandatory)][object[]]$Sections,
-        [switch]$CompactSections
+        [switch]$Nested
     )
 
     $layoutSections = [System.Collections.Generic.List[object]]::new()
@@ -289,7 +289,7 @@ function ConvertTo-TerminalMenuLayoutSections {
         # A nested menu draws no Section heading: its Sections only order the
         # rows, which read as one list.
         $layoutSections.Add([pscustomobject]@{
-            Label = if ($CompactSections) { '' } else { $section.Label }
+            Label = if ($Nested) { '' } else { $section.Label }
             Rows = @($rows)
         })
     }
@@ -498,7 +498,7 @@ function Add-TerminalActionMenuBody {
     $layoutSections = @(
         ConvertTo-TerminalMenuLayoutSections `
             -Sections $View.Sections `
-            -CompactSections:($null -ne $View.BackTarget)
+            -Nested:($null -ne $View.BackTarget)
     )
     $grid = Get-TerminalMenuGrid -LayoutSections $layoutSections -Width $Frame.Width
 

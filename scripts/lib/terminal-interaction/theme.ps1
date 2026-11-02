@@ -133,8 +133,7 @@ function Get-TerminalPresentationStyle {
         # heading it extends.
         'SectionSeparator' { [ConsoleColor]::DarkGray }
         # A plain Action reads as body text, like a Variant; only the label of
-        # an Action Row, or of a compact Action Group, takes the teal of the
-        # launcher's row titles.
+        # an Action Row takes the teal of the launcher's row titles.
         'Action' { $null }
         'ActionLabel' { [ConsoleColor]::Cyan }
         'ActionVariant' { $null }

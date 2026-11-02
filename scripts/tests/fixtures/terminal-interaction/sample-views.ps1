@@ -1,5 +1,5 @@
 # Sample Views for the terminal-interaction tests: a fixed catalog that
-# exercises every View kind (Action Rows, compact groups, Accesses, a
+# exercises every View kind (Action Rows, nested Sections, Accesses, a
 # Preparation and an Execution) without any repository behind it. The names
 # echo a real launcher so the frames read naturally in the assertions.
 
