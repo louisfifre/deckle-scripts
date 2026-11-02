@@ -115,23 +115,23 @@ $resetAiSessions = Get-Placement -Frame $maintenanceFrame -TargetId action.reset
 Assert-Equal 3 $maintenanceView.Sections.Count 'Maintenance keeps its three semantic groups'
 $maintenanceItems = @($maintenanceView.Sections | ForEach-Object { $_.Items })
 Assert-Equal 6 $maintenanceItems.Count 'Maintenance keeps six independently activatable targets'
-Assert-Equal 0 @($maintenanceItems | Where-Object { $_.PSObject.Properties['Kind'] -and $_.Kind -eq 'ActionRow' }).Count 'compact Maintenance groups do not reclassify independent Actions as Action Rows'
+Assert-Equal 0 @($maintenanceItems | Where-Object { $_.PSObject.Properties['Kind'] -and $_.Kind -eq 'ActionRow' }).Count 'nested Sections do not reclassify independent Actions as Action Rows'
 Assert-Equal Action $maintenanceItems[0].IntentKind 'Repository statistics remains an independent Action intent'
 Assert-Equal Action $maintenanceItems[0].PresentationRole 'the semantic target remains an Action before layout projection'
 $maintenanceSegments = @($maintenanceFrame.Lines | ForEach-Object { $_.Segments })
-Assert-Equal 0 @($maintenanceSegments | Where-Object { $_.PresentationRole -eq 'Section' }).Count 'compact Maintenance groups avoid full Section headings'
-Assert-Equal 0 @($maintenanceSegments | Where-Object { $_.PresentationRole -eq 'SectionSeparator' }).Count 'compact Maintenance groups avoid full-width Section rules'
-Assert-Equal 1 @($maintenanceSegments | Where-Object { $_.Text -eq 'Statistics' -and $_.PresentationRole -eq 'ActionLabel' }).Count 'a compact group label takes the Action Row label role'
-Assert-Equal 1 @($maintenanceSegments | Where-Object { $_.Text -match 'Repository statistics' -and $_.PresentationRole -eq 'Action' }).Count 'an independent grouped Action keeps its Action role'
-Assert-Equal 1 @($maintenanceSegments | Where-Object { $_.Text -match 'Reset AI session state' -and $_.PresentationRole -eq 'Danger' }).Count 'danger survives compact grouping'
-Assert-Equal $repositoryStatistics.Y $contextStatistics.Y 'statistics Actions share one compact group row'
-Assert-Equal $cleanBuildOutputs.Y $stopBuildServers.Y 'cleanup Actions share one compact group row'
-Assert-Equal $inspectAiSessions.Y $resetAiSessions.Y 'AI-session Actions share one compact group row'
-Assert-Equal ($repositoryStatistics.Y + 1) $cleanBuildOutputs.Y 'compact Maintenance rows are vertically adjacent'
-Assert-Equal ($cleanBuildOutputs.Y + 1) $inspectAiSessions.Y 'all compact Maintenance rows remain vertically adjacent'
+Assert-Equal 0 @($maintenanceSegments | Where-Object { $_.PresentationRole -eq 'Section' }).Count 'a nested menu draws no Section heading'
+Assert-Equal 0 @($maintenanceSegments | Where-Object { $_.PresentationRole -eq 'SectionSeparator' }).Count 'a nested menu draws no Section rule'
+Assert-Equal 0 @($maintenanceSegments | Where-Object { $_.Text -eq 'Statistics' }).Count 'a nested Section label titles nothing'
+Assert-Equal 1 @($maintenanceSegments | Where-Object { $_.Text -match 'Repository statistics' -and $_.PresentationRole -eq 'Action' }).Count 'an independent Action keeps its Action role'
+Assert-Equal 1 @($maintenanceSegments | Where-Object { $_.Text -match 'Reset AI session state' -and $_.PresentationRole -eq 'Danger' }).Count 'danger survives in a nested Section'
+Assert-Equal $repositoryStatistics.Y $contextStatistics.Y 'the Actions of one nested Section fill one line'
+Assert-Equal $cleanBuildOutputs.Y $stopBuildServers.Y 'cleanup Actions fill one line'
+Assert-Equal $inspectAiSessions.Y $resetAiSessions.Y 'AI-session Actions fill one line'
+Assert-Equal ($repositoryStatistics.Y + 1) $cleanBuildOutputs.Y 'nested Sections follow one another without a gap'
+Assert-Equal ($cleanBuildOutputs.Y + 1) $inspectAiSessions.Y 'every nested Section follows the previous one without a gap'
 Assert-Equal $repositoryStatistics.X $cleanBuildOutputs.X 'first Maintenance Actions share one stable option track'
 Assert-Equal $contextStatistics.X $stopBuildServers.X 'second Maintenance Actions share one stable option track'
-Assert-True ($maintenanceText -match 'Statistics\s+Repository statistics\s+Context statistics') 'the compact statistics row preserves its subject and complete choices'
+Assert-True ($maintenanceText -match 'Repository statistics\s+Context statistics') 'the Actions of a nested Section keep their complete labels'
 $preparationWide = Get-TerminalInteractionFrame `
     -View $preparation `
     -OwnerActionMenu $maintenanceView `
@@ -317,8 +317,8 @@ $maintenanceLike = New-TerminalActionMenuView -ViewId menu.plain -Banner 'Plain'
 )
 $plainFrame = Get-TerminalInteractionFrame -View $maintenanceLike -Width 100 -Height 24 -FocusedTargetId action.preview-changelog
 
-# In a nested menu, an untitled Action Row then compact Action Groups carry
-# no heading between them: each row sits on the very next line.
+# In a nested menu, an untitled Action Row then labelled Sections carry no
+# heading between them: each row sits on the very next line.
 $gitLike = New-TerminalActionMenuView -ViewId menu.git -Banner 'Deckle' -Context 'Git and versions' -BackTarget $project.BackTarget -Sections @(
     New-TerminalSection -Label $null -Items @(New-TerminalActionRow -Label 'Record version' -Variants $bumpVariants)
     New-TerminalSection -Label Release -Items @($versionActions[2])
@@ -328,8 +328,8 @@ $gitFrame = Get-TerminalInteractionFrame -View $gitLike -Width 120 -Height 24 -F
 $gitPatch = Get-Placement -Frame $gitFrame -TargetId action.bump.patch
 $gitMark = Get-Placement -Frame $gitFrame -TargetId action.mark-release
 $gitPreview = Get-Placement -Frame $gitFrame -TargetId action.preview-changelog
-Assert-Equal ($gitPatch.Y + 1) $gitMark.Y 'a compact Action Group follows an untitled Action Row on the next line'
-Assert-Equal ($gitMark.Y + 1) $gitPreview.Y 'compact Action Groups follow one another on the next line'
+Assert-Equal ($gitPatch.Y + 1) $gitMark.Y 'a nested Section follows an untitled Action Row on the next line'
+Assert-Equal ($gitMark.Y + 1) $gitPreview.Y 'nested Sections follow one another on the next line'
 Assert-Equal ((Get-RoleLineIndex -Frame $plainFrame -PresentationRole PrimarySeparator) + 2) (Get-Placement -Frame $plainFrame -TargetId action.preview-changelog).Y 'without an Action Row above, independent Actions open the body with no gap'
 
 # A logo opens the Header when the terminal affords it: Unicode output, a
