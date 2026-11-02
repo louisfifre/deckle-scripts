@@ -317,6 +317,19 @@ $maintenanceLike = New-TerminalActionMenuView -ViewId menu.plain -Banner 'Plain'
 )
 $plainFrame = Get-TerminalInteractionFrame -View $maintenanceLike -Width 100 -Height 24 -FocusedTargetId action.preview-changelog
 
+# In a nested menu, an untitled Action Row then compact Action Groups carry
+# no heading between them: each row sits on the very next line.
+$gitLike = New-TerminalActionMenuView -ViewId menu.git -Banner 'Deckle' -Context 'Git and versions' -BackTarget $project.BackTarget -Sections @(
+    New-TerminalSection -Label $null -Items @(New-TerminalActionRow -Label 'Record version' -Variants $bumpVariants)
+    New-TerminalSection -Label Release -Items @($versionActions[2])
+    New-TerminalSection -Label Changelog -Items @($versionActions[0], $versionActions[1])
+)
+$gitFrame = Get-TerminalInteractionFrame -View $gitLike -Width 120 -Height 24 -FocusedTargetId action.bump.patch
+$gitPatch = Get-Placement -Frame $gitFrame -TargetId action.bump.patch
+$gitMark = Get-Placement -Frame $gitFrame -TargetId action.mark-release
+$gitPreview = Get-Placement -Frame $gitFrame -TargetId action.preview-changelog
+Assert-Equal ($gitPatch.Y + 1) $gitMark.Y 'a compact Action Group follows an untitled Action Row on the next line'
+Assert-Equal ($gitMark.Y + 1) $gitPreview.Y 'compact Action Groups follow one another on the next line'
 Assert-Equal ((Get-RoleLineIndex -Frame $plainFrame -PresentationRole PrimarySeparator) + 2) (Get-Placement -Frame $plainFrame -TargetId action.preview-changelog).Y 'without an Action Row above, independent Actions open the body with no gap'
 
 # A logo opens the Header when the terminal affords it: Unicode output, a
