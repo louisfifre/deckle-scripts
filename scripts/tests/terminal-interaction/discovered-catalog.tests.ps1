@@ -116,6 +116,19 @@ try {
     Remove-Item -LiteralPath $rowsRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# A root with nothing to offer, Settings folder missing included, still opens
+# on Logs and Quit.
+$emptyRoot = Join-Path ([IO.Path]::GetTempPath()) "discovered-empty-$([guid]::NewGuid())"
+try {
+    $null = New-Item -ItemType Directory -Path $emptyRoot -Force
+    $emptyView = ConvertTo-LauncherDiscoveredView -Level (Get-ScriptCatalog -Path $emptyRoot) -Banner 'Empty' -IsRoot
+    Assert-Equal 'access.logs' (Get-LauncherFirstTargetId -View $emptyView) 'an empty root focuses Logs first'
+    $emptyFrame = Get-TerminalInteractionFrame -View $emptyView -Width 80 -Height 20 -FocusedTargetId (Get-LauncherFirstTargetId -View $emptyView)
+    Assert-Equal 1 @($emptyFrame.Targets | Where-Object TargetId -eq 'command.quit').Count 'an empty root still offers Quit'
+} finally {
+    Remove-Item -LiteralPath $emptyRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $allTargets = @(Get-ViewTargets $root)
 $uniqueIds = @($allTargets | ForEach-Object TargetId | Sort-Object -Unique)
 Assert-Equal $allTargets.Count $uniqueIds.Count 'target ids are unique in the View'

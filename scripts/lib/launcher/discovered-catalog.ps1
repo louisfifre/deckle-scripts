@@ -211,7 +211,12 @@ function Test-LauncherConfirmationView {
 function Get-LauncherFirstTargetId {
     param([Parameter(Mandatory)][object]$View)
 
-    $first = $View.Sections[0].Items[0]
+    # A root with no script and no folder holds only its trailing Logs and
+    # Quit, so the first target is looked for there too.
+    $first = @($View.Sections | ForEach-Object {
+        $_.Items
+        if ($_.PSObject.Properties['Trailing']) { $_.Trailing }
+    } | Where-Object { $null -ne $_ })[0]
     if ($first.PSObject.Properties['Kind'] -and $first.Kind -eq 'ActionRow') { return $first.Variants[0].TargetId }
     return $first.TargetId
 }
