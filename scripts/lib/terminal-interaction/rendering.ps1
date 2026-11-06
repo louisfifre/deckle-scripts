@@ -87,29 +87,16 @@ function Get-TerminalSegmentColors {
     $colorCapability = 'Supported'
     $colorProperty = $HostState.PSObject.Properties['Color']
     if ($null -ne $colorProperty) { $colorCapability = [string]$colorProperty.Value }
-    # A host that names no resolved palette keeps the console colours.
-    $palette = 'Terminal'
-    $paletteProperty = $HostState.PSObject.Properties['Palette']
-    if ($null -ne $paletteProperty -and $paletteProperty.Value -in @('TrueColorDark', 'TrueColorLight')) {
-        $palette = [string]$paletteProperty.Value
-    }
-    $style = Get-TerminalPresentationStyle `
-        -Role $Segment.PresentationRole `
-        -State $Segment.State `
-        -ColorCapability $colorCapability `
-        -Palette $palette
     # A role the theme leaves unnamed stays null here, so the VT painter sends
     # the terminal's default colour rather than the console's reported one:
     # Windows Terminal and VS Code report grey on black whatever the profile
     # shows, so painting the reported pair would lay a dark surface over a
     # light scheme. Only the legacy painter, which has no notion of a default,
     # falls back to the colours recorded at start.
-    return [pscustomobject]@{
-        Foreground = $style.Foreground
-        Background = $style.Background
-        ForegroundRgb = $style.ForegroundRgb
-        BackgroundRgb = $style.BackgroundRgb
-    }
+    return Get-TerminalPresentationStyle `
+        -Role $Segment.PresentationRole `
+        -State $Segment.State `
+        -ColorCapability $colorCapability
 }
 
 function Set-TerminalFrameCursorPosition {
@@ -190,40 +177,13 @@ function Get-TerminalColorSequenceCode {
 function Get-TerminalTextAttributeSequence {
     param(
         [AllowNull()][Nullable[ConsoleColor]]$Foreground,
-        [AllowNull()][Nullable[ConsoleColor]]$Background,
-        [AllowNull()][int[]]$ForegroundRgb,
-        [AllowNull()][int[]]$BackgroundRgb
+        [AllowNull()][Nullable[ConsoleColor]]$Background
     )
 
     $escape = [char]27
-    $foregroundCode = if ($null -ne $ForegroundRgb) {
-        Get-TerminalRgbSequenceCode -Color $ForegroundRgb
-    } elseif ($null -ne $Foreground) {
-        Get-TerminalColorSequenceCode -Color $Foreground
-    } else {
-        39
-    }
-    $backgroundCode = if ($null -ne $BackgroundRgb) {
-        Get-TerminalRgbSequenceCode -Color $BackgroundRgb -Background
-    } elseif ($null -ne $Background) {
-        Get-TerminalColorSequenceCode -Color $Background -Background
-    } else {
-        49
-    }
+    $foregroundCode = if ($null -ne $Foreground) { Get-TerminalColorSequenceCode -Color $Foreground } else { 39 }
+    $backgroundCode = if ($null -ne $Background) { Get-TerminalColorSequenceCode -Color $Background -Background } else { 49 }
     return "$escape[$foregroundCode;${backgroundCode}m"
-}
-
-function Get-TerminalRgbSequenceCode {
-    param(
-        [Parameter(Mandatory)][ValidateCount(3, 3)][int[]]$Color,
-        [switch]$Background
-    )
-
-    foreach ($channel in $Color) {
-        if ($channel -lt 0 -or $channel -gt 255) { throw "RGB channel '$channel' is outside 0..255." }
-    }
-    $prefix = if ($Background) { 48 } else { 38 }
-    return "$prefix;2;$($Color[0]);$($Color[1]);$($Color[2])"
 }
 
 function Get-TerminalSegmentSequence {
@@ -232,17 +192,11 @@ function Get-TerminalSegmentSequence {
         [Parameter(Mandatory)][ValidateRange(0, 1000000)][int]$Y,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
         [AllowNull()][Nullable[ConsoleColor]]$Foreground,
-        [AllowNull()][Nullable[ConsoleColor]]$Background,
-        [AllowNull()][int[]]$ForegroundRgb,
-        [AllowNull()][int[]]$BackgroundRgb
+        [AllowNull()][Nullable[ConsoleColor]]$Background
     )
 
     $position = Get-TerminalCursorPositionSequence -X $X -Y $Y
-    $attributes = Get-TerminalTextAttributeSequence `
-        -Foreground $Foreground `
-        -Background $Background `
-        -ForegroundRgb $ForegroundRgb `
-        -BackgroundRgb $BackgroundRgb
+    $attributes = Get-TerminalTextAttributeSequence -Foreground $Foreground -Background $Background
     return "$position$attributes$Text"
 }
 
@@ -301,8 +255,8 @@ function Write-TerminalInteractionFrame {
     $paintWidth = [Math]::Max(1, $Frame.Width - 1)
     $changedLines = @(Get-TerminalChangedLineIndexes -Frame $Frame -PreviousFrame $PreviousFrame)
     if ($changedLines.Count -eq 0) { return }
-    # Cells no segment owns take the theme surface, so a designed background
-    # covers the whole line rather than only its text.
+    # Cells no segment owns are painted as body text, so a whole line goes out
+    # in one consistent pair rather than only its text.
     $surfaceColors = Get-TerminalSegmentColors `
         -Segment ([pscustomobject]@{ PresentationRole = 'Body'; State = 'Normal' }) `
         -HostState $HostState
@@ -326,9 +280,7 @@ function Write-TerminalInteractionFrame {
                     -Y $lineIndex `
                     -Text $run.Text `
                     -Foreground $colors.Foreground `
-                    -Background $colors.Background `
-                    -ForegroundRgb $colors.ForegroundRgb `
-                    -BackgroundRgb $colors.BackgroundRgb))
+                    -Background $colors.Background))
             } else {
                 Set-TerminalFrameCursorPosition -X $run.X -Y $lineIndex -HostState $HostState
                 [Console]::ForegroundColor = if ($null -eq $colors.Foreground) { $HostState.OriginalForeground } else { $colors.Foreground }
