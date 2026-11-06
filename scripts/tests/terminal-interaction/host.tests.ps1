@@ -58,11 +58,21 @@ $unnamedHost = [pscustomobject]@{
 foreach ($hostState in @($terminalHost, $unnamedHost)) {
     $sectionColors = Get-SegmentColors -Role Section -State Normal -HostState $hostState
     Assert-Equal ([ConsoleColor]::Magenta) $sectionColors.Foreground 'a Terminal Section takes its console colour'
+    Assert-Equal $null $sectionColors.Background 'a Terminal Section leaves the background to the terminal'
     Assert-Equal $null $sectionColors.ForegroundRgb 'a Terminal Section names no RGB foreground'
     Assert-Equal $null $sectionColors.BackgroundRgb 'a Terminal Section names no RGB background'
+    # The console reports grey on black whatever the scheme shows, so a role
+    # the theme leaves unnamed must not take the reported pair.
+    $bodyColors = Get-SegmentColors -Role Body -State Normal -HostState $hostState
+    Assert-Equal $null $bodyColors.Foreground 'Terminal body text leaves the foreground to the terminal'
+    Assert-Equal $null $bodyColors.Background 'Terminal body text leaves the background to the terminal'
 }
 $terminalSection = Get-SegmentSequence -X 1 -Y 4 -Text 'RUN ' -Colors (Get-SegmentColors -Role Section -State Normal -HostState $terminalHost)
-Assert-Equal "$escape[5;2H$escape[95;40mRUN " $terminalSection 'a Terminal Section emits sixteen-colour attributes and text in one VT sequence'
+Assert-Equal "$escape[5;2H$escape[95;49mRUN " $terminalSection 'a Terminal Section emits its console foreground on the default background in one VT sequence'
+$terminalBody = Get-SegmentSequence -X 1 -Y 5 -Text 'Builds' -Colors (Get-SegmentColors -Role Body -State Normal -HostState $terminalHost)
+Assert-Equal "$escape[6;2H$escape[39;49mBuilds" $terminalBody 'Terminal body text emits the default foreground and background, never the reported console pair'
+$resetAttributes = & $module { Get-TerminalTextAttributeSequence -Foreground $null -Background $null }
+Assert-Equal "$escape[39;49m" $resetAttributes 'the frame closes on the terminal defaults'
 $terminalActionFocus = Get-SegmentSequence -X 7 -Y 3 -Text '> Launch' -Colors (Get-SegmentColors -Role Action -State Focused -HostState $terminalHost)
 Assert-Equal "$escape[4;8H$escape[30;47m> Launch" $terminalActionFocus 'a focused Action emits cursor, classic selection attributes, and content as one VT sequence'
 $terminalExitFocus = Get-SegmentSequence -X 7 -Y 3 -Text '  Quit' -Colors (Get-SegmentColors -Role Exit -State Focused -HostState $terminalHost)
@@ -70,9 +80,9 @@ Assert-Equal "$escape[4;8H$escape[30;47m  Quit" $terminalExitFocus 'a focused Ex
 $terminalDangerFocus = Get-SegmentSequence -X 7 -Y 3 -Text '  Reset' -Colors (Get-SegmentColors -Role Danger -State Focused -HostState $terminalHost)
 Assert-Equal "$escape[4;8H$escape[97;41m  Reset" $terminalDangerFocus 'a focused Danger target inverts to white on dark red'
 $terminalCommandKey = Get-SegmentSequence -X 0 -Y 0 -Text 'Enter' -Colors (Get-SegmentColors -Role CommandKey -State Normal -HostState $terminalHost)
-Assert-Equal "$escape[1;1H$escape[37;40mEnter" $terminalCommandKey 'a command key remains distinct from its muted command label'
+Assert-Equal "$escape[1;1H$escape[37;49mEnter" $terminalCommandKey 'a command key remains distinct from its muted command label'
 $terminalCommandLabel = Get-SegmentSequence -X 6 -Y 0 -Text 'Open' -Colors (Get-SegmentColors -Role CommandLabel -State Normal -HostState $terminalHost)
-Assert-Equal "$escape[1;7H$escape[90;40mOpen" $terminalCommandLabel 'a command label emits the classic muted foreground through the VT stream'
+Assert-Equal "$escape[1;7H$escape[90;49mOpen" $terminalCommandLabel 'a command label emits the classic muted foreground through the VT stream'
 
 # the TrueColor palette sends its exact 24-bit tokens, console colours kept for a legacy host.
 $darkHost = [pscustomobject]@{
@@ -88,7 +98,7 @@ foreach ($expectedRoleColor in @(
 )) {
     $resolvedColors = Get-SegmentColors -Role $expectedRoleColor.Role -State Normal -HostState $darkHost
     Assert-Equal $expectedRoleColor.Color $resolvedColors.Foreground "$($expectedRoleColor.Role) retains its legacy renderer fallback"
-    Assert-Equal ([ConsoleColor]::Black) $resolvedColors.Background "$($expectedRoleColor.Role) retains the host background fallback"
+    Assert-Equal $null $resolvedColors.Background "$($expectedRoleColor.Role) names no console background; the legacy painter falls back to the host's"
     Assert-Rgb $expectedRoleColor.Rgb $resolvedColors.ForegroundRgb "$($expectedRoleColor.Role) exact dark token reaches the VT renderer"
     Assert-Rgb '1,22,39' $resolvedColors.BackgroundRgb "$($expectedRoleColor.Role) exact dark surface reaches the VT renderer"
 }

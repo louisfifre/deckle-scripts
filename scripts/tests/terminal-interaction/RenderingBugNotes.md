@@ -49,3 +49,13 @@ Regression coverage: `scripts/tests/terminal-interaction/theme.tests.ps1` keeps 
 - **Recurrence cue:** `Write-TerminalInteractionFrame` has no prior-frame comparison, or a focus-only change schedules every frame line for repaint.
 
 Regression coverage: `scripts/tests/terminal-interaction/host.tests.ps1` verifies that identical frames schedule no repaint, focus movement schedules only the affected lines, and a geometry change schedules a complete redraw.
+
+## The default palette painted a dark surface over a light scheme
+
+- **Trigger:** Open the launcher under the default Terminal palette in a VS Code or Windows Terminal profile whose scheme is light.
+- **Observed symptom:** Every cell took a dark, slightly blue surface and a washed grey text, as if the menu had its own dark mode, although the palette was meant to take the terminal's colours.
+- **Cause:** A role the theme left unnamed took `Console.ForegroundColor` and `Console.BackgroundColor`, and the VT painter sent that pair as explicit SGR 37 and 40. Windows Terminal and VS Code report grey on black whatever the profile shows, so the painter laid the scheme's "black" slot under the whole frame.
+- **Violated invariant:** Under the Terminal palette the host sends console colours only where the theme names one; everywhere else it sends the terminal's default foreground and background, SGR 39 and 49, so the frame blends into the active scheme, light or dark.
+- **Recurrence cue:** A segment colour falls back to the colours recorded at start before VT serialization, or coverage asserts an explicit `40` background for a role the theme does not colour.
+
+Regression coverage: `scripts/tests/terminal-interaction/host.tests.ps1` asserts that body text and the closing attributes of a frame emit `39;49` under the Terminal palette and that a Section carries its console foreground on the default background.

@@ -98,11 +98,15 @@ function Get-TerminalSegmentColors {
         -State $Segment.State `
         -ColorCapability $colorCapability `
         -Palette $palette
-    $foreground = if ($null -eq $style.Foreground) { $HostState.OriginalForeground } else { $style.Foreground }
-    $background = if ($null -eq $style.Background) { $HostState.OriginalBackground } else { $style.Background }
+    # A role the theme leaves unnamed stays null here, so the VT painter sends
+    # the terminal's default colour rather than the console's reported one:
+    # Windows Terminal and VS Code report grey on black whatever the profile
+    # shows, so painting the reported pair would lay a dark surface over a
+    # light scheme. Only the legacy painter, which has no notion of a default,
+    # falls back to the colours recorded at start.
     return [pscustomobject]@{
-        Foreground = $foreground
-        Background = $background
+        Foreground = $style.Foreground
+        Background = $style.Background
         ForegroundRgb = $style.ForegroundRgb
         BackgroundRgb = $style.BackgroundRgb
     }
@@ -181,24 +185,30 @@ function Get-TerminalColorSequenceCode {
     return $code
 }
 
+# A null console colour is the terminal's own default, SGR 39 or 49, which
+# every VT host paints from its active scheme.
 function Get-TerminalTextAttributeSequence {
     param(
-        [Parameter(Mandatory)][ConsoleColor]$Foreground,
-        [Parameter(Mandatory)][ConsoleColor]$Background,
+        [AllowNull()][Nullable[ConsoleColor]]$Foreground,
+        [AllowNull()][Nullable[ConsoleColor]]$Background,
         [AllowNull()][int[]]$ForegroundRgb,
         [AllowNull()][int[]]$BackgroundRgb
     )
 
     $escape = [char]27
-    $foregroundCode = if ($null -eq $ForegroundRgb) {
+    $foregroundCode = if ($null -ne $ForegroundRgb) {
+        Get-TerminalRgbSequenceCode -Color $ForegroundRgb
+    } elseif ($null -ne $Foreground) {
         Get-TerminalColorSequenceCode -Color $Foreground
     } else {
-        Get-TerminalRgbSequenceCode -Color $ForegroundRgb
+        39
     }
-    $backgroundCode = if ($null -eq $BackgroundRgb) {
+    $backgroundCode = if ($null -ne $BackgroundRgb) {
+        Get-TerminalRgbSequenceCode -Color $BackgroundRgb -Background
+    } elseif ($null -ne $Background) {
         Get-TerminalColorSequenceCode -Color $Background -Background
     } else {
-        Get-TerminalRgbSequenceCode -Color $BackgroundRgb -Background
+        49
     }
     return "$escape[$foregroundCode;${backgroundCode}m"
 }
@@ -221,8 +231,8 @@ function Get-TerminalSegmentSequence {
         [Parameter(Mandatory)][ValidateRange(0, 1000000)][int]$X,
         [Parameter(Mandatory)][ValidateRange(0, 1000000)][int]$Y,
         [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
-        [Parameter(Mandatory)][ConsoleColor]$Foreground,
-        [Parameter(Mandatory)][ConsoleColor]$Background,
+        [AllowNull()][Nullable[ConsoleColor]]$Foreground,
+        [AllowNull()][Nullable[ConsoleColor]]$Background,
         [AllowNull()][int[]]$ForegroundRgb,
         [AllowNull()][int[]]$BackgroundRgb
     )
@@ -321,16 +331,16 @@ function Write-TerminalInteractionFrame {
                     -BackgroundRgb $colors.BackgroundRgb))
             } else {
                 Set-TerminalFrameCursorPosition -X $run.X -Y $lineIndex -HostState $HostState
-                [Console]::ForegroundColor = $colors.Foreground
-                [Console]::BackgroundColor = $colors.Background
+                [Console]::ForegroundColor = if ($null -eq $colors.Foreground) { $HostState.OriginalForeground } else { $colors.Foreground }
+                [Console]::BackgroundColor = if ($null -eq $colors.Background) { $HostState.OriginalBackground } else { $colors.Background }
                 [Console]::Write($run.Text)
             }
         }
     }
     if ($useVirtualTerminal) {
-        [void]$builder.Append((Get-TerminalTextAttributeSequence `
-            -Foreground $HostState.OriginalForeground `
-            -Background $HostState.OriginalBackground))
+        # Back to the terminal's defaults, so the cells painted after the
+        # frame take the scheme, not the colours recorded at start.
+        [void]$builder.Append((Get-TerminalTextAttributeSequence -Foreground $null -Background $null))
         [void]$builder.Append("$escape[?2026l")
         [Console]::Write($builder.ToString())
     } else {

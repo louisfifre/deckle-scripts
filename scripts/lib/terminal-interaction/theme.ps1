@@ -125,6 +125,9 @@ function Get-TerminalPresentationStyle {
         }
     }
 
+    # A null console colour means the terminal's own default, which the host
+    # sends as such; the theme never fills it from the console's reported
+    # colours.
     $foreground = switch ($Role) {
         'Banner' { [ConsoleColor]::Blue }
         'Context' { [ConsoleColor]::DarkGray }
