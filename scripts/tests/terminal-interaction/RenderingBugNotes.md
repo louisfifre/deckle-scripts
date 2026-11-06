@@ -10,16 +10,6 @@
 
 Regression coverage: `scripts/tests/terminal-interaction/host.tests.ps1` asserts that VT segments serialize cursor position, SGR foreground and background, and text together, including focused Action contrast and distinct command-key and command-label tones.
 
-## Virtual-terminal output approximated the approved palette
-
-- **Trigger:** Render the approved Figma dark or light theme through the VT drawing path.
-- **Observed symptom:** Sections, Action subjects, Accesses, body text, surfaces, and selection could not match their specified RGB values even though their semantic roles reached the renderer.
-- **Cause:** VT attributes were serialized only as ANSI 16-color codes derived from `ConsoleColor`; the style and renderer had no 24-bit foreground or background channel.
-- **Violated invariant:** Under the TrueColor palette, a VT-capable host paints the exact active-variant tokens while a legacy host alone uses semantic `ConsoleColor` fallbacks. The default Terminal palette sends console colours only.
-- **Recurrence cue:** Theme RGB values are reduced to `ConsoleColor` before VT serialization, or coverage checks role separation without asserting the emitted `38;2` and `48;2` sequences for both theme variants.
-
-Regression coverage: `scripts/tests/terminal-interaction/theme.tests.ps1` asserts every approved dark/light role token, the uniform selection inversion, and that the default Terminal palette names no RGB value; `scripts/tests/terminal-interaction/host.tests.ps1` asserts exact 24-bit Section and dark/light focus sequences, and sixteen-colour sequences for the Terminal palette.
-
 ## Focus highlight changed width with the selected label
 
 - **Trigger:** Focus moved between targets whose labels had different lengths inside stable layout columns.
@@ -49,3 +39,13 @@ Regression coverage: `scripts/tests/terminal-interaction/theme.tests.ps1` keeps 
 - **Recurrence cue:** `Write-TerminalInteractionFrame` has no prior-frame comparison, or a focus-only change schedules every frame line for repaint.
 
 Regression coverage: `scripts/tests/terminal-interaction/host.tests.ps1` verifies that identical frames schedule no repaint, focus movement schedules only the affected lines, and a geometry change schedules a complete redraw.
+
+## The theme painted a dark surface over a light scheme
+
+- **Trigger:** Open the launcher in a VS Code or Windows Terminal profile whose scheme is light.
+- **Observed symptom:** Every cell took a dark, slightly blue surface and a washed grey text, as if the menu had its own dark mode, although the theme was meant to take the terminal's colours.
+- **Cause:** A role the theme left unnamed took `Console.ForegroundColor` and `Console.BackgroundColor`, and the VT painter sent that pair as explicit SGR 37 and 40. Windows Terminal and VS Code report grey on black whatever the profile shows, so the painter laid the scheme's "black" slot under the whole frame. The same reported background drove the dark-or-light choice of a designed RGB palette, which therefore always came out dark; that palette was retired with the fix, the theme now has the console colours as its only source.
+- **Violated invariant:** The host sends console colours only where the theme names one; everywhere else it sends the terminal's default foreground and background, SGR 39 and 49, so the frame blends into the active scheme, light or dark.
+- **Recurrence cue:** A segment colour falls back to the colours recorded at start before VT serialization, coverage asserts an explicit `40` background for a role the theme does not colour, or any code reads `Console.BackgroundColor` to tell a light scheme from a dark one.
+
+Regression coverage: `scripts/tests/terminal-interaction/host.tests.ps1` asserts that body text and the closing attributes of a frame emit `39;49` and that a Section carries its console foreground on the default background.

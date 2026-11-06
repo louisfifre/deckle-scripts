@@ -7,10 +7,6 @@ function Assert-Equal($Expected, $Actual, [string]$Case) {
     if ($Expected -ne $Actual) { throw "${Case}: expected '$Expected', got '$Actual'" }
 }
 
-function Assert-Rgb([string]$Expected, $Actual, [string]$Case) {
-    Assert-Equal $Expected (@($Actual) -join ',') $Case
-}
-
 $bridgeAvailable = & $module { Initialize-TerminalHostBridge }
 Assert-Equal $true $bridgeAvailable 'Windows console bridge compiles for this PowerShell engine'
 
@@ -37,32 +33,37 @@ function Get-SegmentSequence([int]$X, [int]$Y, [string]$Text, [object]$Colors) {
             -Y $y `
             -Text $text `
             -Foreground $colors.Foreground `
-            -Background $colors.Background `
-            -ForegroundRgb $colors.ForegroundRgb `
-            -BackgroundRgb $colors.BackgroundRgb
+            -Background $colors.Background
     } $X $Y $Text $Colors
 }
 
-# The Terminal palette, the default, sends console colours only.
+# The theme sends console colours only, whatever the console reports.
 $terminalHost = [pscustomobject]@{
     Color = 'Supported'
     OriginalForeground = [ConsoleColor]::Gray
     OriginalBackground = [ConsoleColor]::Black
-    Palette = 'Terminal'
 }
-$unnamedHost = [pscustomobject]@{
+$lightConsoleHost = [pscustomobject]@{
     Color = 'Supported'
     OriginalForeground = [ConsoleColor]::Gray
     OriginalBackground = [ConsoleColor]::White
 }
-foreach ($hostState in @($terminalHost, $unnamedHost)) {
+foreach ($hostState in @($terminalHost, $lightConsoleHost)) {
     $sectionColors = Get-SegmentColors -Role Section -State Normal -HostState $hostState
-    Assert-Equal ([ConsoleColor]::Magenta) $sectionColors.Foreground 'a Terminal Section takes its console colour'
-    Assert-Equal $null $sectionColors.ForegroundRgb 'a Terminal Section names no RGB foreground'
-    Assert-Equal $null $sectionColors.BackgroundRgb 'a Terminal Section names no RGB background'
+    Assert-Equal ([ConsoleColor]::Magenta) $sectionColors.Foreground 'a Section takes its console colour'
+    Assert-Equal $null $sectionColors.Background 'a Section leaves the background to the terminal'
+    # The console reports grey on black whatever the scheme shows, so a role
+    # the theme leaves unnamed must not take the reported pair.
+    $bodyColors = Get-SegmentColors -Role Body -State Normal -HostState $hostState
+    Assert-Equal $null $bodyColors.Foreground 'body text leaves the foreground to the terminal'
+    Assert-Equal $null $bodyColors.Background 'body text leaves the background to the terminal'
 }
 $terminalSection = Get-SegmentSequence -X 1 -Y 4 -Text 'RUN ' -Colors (Get-SegmentColors -Role Section -State Normal -HostState $terminalHost)
-Assert-Equal "$escape[5;2H$escape[95;40mRUN " $terminalSection 'a Terminal Section emits sixteen-colour attributes and text in one VT sequence'
+Assert-Equal "$escape[5;2H$escape[95;49mRUN " $terminalSection 'a Section emits its console foreground on the default background in one VT sequence'
+$terminalBody = Get-SegmentSequence -X 1 -Y 5 -Text 'Builds' -Colors (Get-SegmentColors -Role Body -State Normal -HostState $terminalHost)
+Assert-Equal "$escape[6;2H$escape[39;49mBuilds" $terminalBody 'body text emits the default foreground and background, never the reported console pair'
+$resetAttributes = & $module { Get-TerminalTextAttributeSequence -Foreground $null -Background $null }
+Assert-Equal "$escape[39;49m" $resetAttributes 'the frame closes on the terminal defaults'
 $terminalActionFocus = Get-SegmentSequence -X 7 -Y 3 -Text '> Launch' -Colors (Get-SegmentColors -Role Action -State Focused -HostState $terminalHost)
 Assert-Equal "$escape[4;8H$escape[30;47m> Launch" $terminalActionFocus 'a focused Action emits cursor, classic selection attributes, and content as one VT sequence'
 $terminalExitFocus = Get-SegmentSequence -X 7 -Y 3 -Text '  Quit' -Colors (Get-SegmentColors -Role Exit -State Focused -HostState $terminalHost)
@@ -70,53 +71,16 @@ Assert-Equal "$escape[4;8H$escape[30;47m  Quit" $terminalExitFocus 'a focused Ex
 $terminalDangerFocus = Get-SegmentSequence -X 7 -Y 3 -Text '  Reset' -Colors (Get-SegmentColors -Role Danger -State Focused -HostState $terminalHost)
 Assert-Equal "$escape[4;8H$escape[97;41m  Reset" $terminalDangerFocus 'a focused Danger target inverts to white on dark red'
 $terminalCommandKey = Get-SegmentSequence -X 0 -Y 0 -Text 'Enter' -Colors (Get-SegmentColors -Role CommandKey -State Normal -HostState $terminalHost)
-Assert-Equal "$escape[1;1H$escape[37;40mEnter" $terminalCommandKey 'a command key remains distinct from its muted command label'
+Assert-Equal "$escape[1;1H$escape[37;49mEnter" $terminalCommandKey 'a command key remains distinct from its muted command label'
 $terminalCommandLabel = Get-SegmentSequence -X 6 -Y 0 -Text 'Open' -Colors (Get-SegmentColors -Role CommandLabel -State Normal -HostState $terminalHost)
-Assert-Equal "$escape[1;7H$escape[90;40mOpen" $terminalCommandLabel 'a command label emits the classic muted foreground through the VT stream'
-
-# the TrueColor palette sends its exact 24-bit tokens, console colours kept for a legacy host.
-$darkHost = [pscustomobject]@{
-    Color = 'Supported'
+Assert-Equal "$escape[1;7H$escape[90;49mOpen" $terminalCommandLabel 'a command label emits the classic muted foreground through the VT stream'
+$noColorHost = [pscustomobject]@{
+    Color = 'Unsupported'
     OriginalForeground = [ConsoleColor]::Gray
     OriginalBackground = [ConsoleColor]::Black
-    Palette = 'TrueColorDark'
 }
-foreach ($expectedRoleColor in @(
-    [pscustomobject]@{ Role = 'Section'; Color = [ConsoleColor]::Magenta; Rgb = '199,146,234' },
-    [pscustomobject]@{ Role = 'ActionLabel'; Color = [ConsoleColor]::Cyan; Rgb = '119,207,192' },
-    [pscustomobject]@{ Role = 'Access'; Color = [ConsoleColor]::DarkYellow; Rgb = '186,217,115' }
-)) {
-    $resolvedColors = Get-SegmentColors -Role $expectedRoleColor.Role -State Normal -HostState $darkHost
-    Assert-Equal $expectedRoleColor.Color $resolvedColors.Foreground "$($expectedRoleColor.Role) retains its legacy renderer fallback"
-    Assert-Equal ([ConsoleColor]::Black) $resolvedColors.Background "$($expectedRoleColor.Role) retains the host background fallback"
-    Assert-Rgb $expectedRoleColor.Rgb $resolvedColors.ForegroundRgb "$($expectedRoleColor.Role) exact dark token reaches the VT renderer"
-    Assert-Rgb '1,22,39' $resolvedColors.BackgroundRgb "$($expectedRoleColor.Role) exact dark surface reaches the VT renderer"
-}
-$darkSection = Get-SegmentSequence -X 1 -Y 4 -Text 'RUN ' -Colors (Get-SegmentColors -Role Section -State Normal -HostState $darkHost)
-Assert-Equal "$escape[5;2H$escape[38;2;199;146;234;48;2;1;22;39mRUN " $darkSection 'a Section emits its exact dark attributes and text in one VT sequence'
-$darkActionFocus = Get-SegmentSequence -X 7 -Y 3 -Text '> Launch' -Colors (Get-SegmentColors -Role Action -State Focused -HostState $darkHost)
-Assert-Equal "$escape[4;8H$escape[38;2;1;22;39;48;2;255;255;255m> Launch" $darkActionFocus 'a focused Action emits the exact inverted dark selection in one VT sequence'
-foreach ($role in @('Exit', 'Danger')) {
-    $darkFocus = Get-SegmentSequence -X 7 -Y 3 -Text '  Quit' -Colors (Get-SegmentColors -Role $role -State Focused -HostState $darkHost)
-    Assert-Equal "$escape[4;8H$escape[38;2;1;22;39;48;2;255;255;255m  Quit" $darkFocus "a focused $role uses the same exact selection treatment as every target"
-}
-$darkCommandKey = Get-SegmentSequence -X 0 -Y 0 -Text 'Enter' -Colors (Get-SegmentColors -Role CommandKey -State Normal -HostState $darkHost)
-Assert-Equal "$escape[1;1H$escape[38;2;204;204;204;48;2;1;22;39mEnter" $darkCommandKey 'a command key uses the exact body neutral'
-$darkCommandLabel = Get-SegmentSequence -X 6 -Y 0 -Text 'Open' -Colors (Get-SegmentColors -Role CommandLabel -State Normal -HostState $darkHost)
-Assert-Equal "$escape[1;7H$escape[90;48;2;1;22;39mOpen" $darkCommandLabel 'a command label retains its muted level on the exact dark surface'
-
-# The host resolves the variant once; the renderer applies it as given.
-$lightHost = [pscustomobject]@{
-    Color = 'Supported'
-    OriginalForeground = [ConsoleColor]::DarkGray
-    OriginalBackground = [ConsoleColor]::Black
-    Palette = 'TrueColorLight'
-}
-$lightFocusColors = Get-SegmentColors -Role Action -State Focused -HostState $lightHost
-Assert-Rgb '246,246,246' $lightFocusColors.ForegroundRgb 'a resolved light palette selects the Figma light focus foreground'
-Assert-Rgb '53,53,53' $lightFocusColors.BackgroundRgb 'a resolved light palette selects the Figma light focus background'
-$lightFocus = Get-SegmentSequence -X 7 -Y 3 -Text '  Release' -Colors $lightFocusColors
-Assert-Equal "$escape[4;8H$escape[38;2;246;246;246;48;2;53;53;53m  Release" $lightFocus 'a light selection emits its exact inverted Figma pair'
+$noColorSection = Get-SegmentSequence -X 1 -Y 4 -Text 'RUN ' -Colors (Get-SegmentColors -Role Section -State Normal -HostState $noColorHost)
+Assert-Equal "$escape[5;2H$escape[39;49mRUN " $noColorSection 'a host without colour support receives the terminal defaults only'
 
 $action = New-TerminalTarget -TargetId action.sample -Label Sample -IntentKind Action
 $otherAction = New-TerminalTarget -TargetId action.other -Label Other -IntentKind Action
