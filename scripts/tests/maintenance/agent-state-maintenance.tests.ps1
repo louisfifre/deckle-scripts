@@ -23,45 +23,6 @@ function Assert-Throws([scriptblock]$Action, [string]$Pattern, [string]$Case) {
     throw ($Case + ': expected an error')
 }
 
-function New-TestStateDatabase([string]$Path, [string]$Trigger = '') {
-    $source = @'
-import sqlite3, sys
-connection = sqlite3.connect(sys.argv[1])
-for table in ["_sqlx_migrations", "backfill_state", "remote_control_enrollments",
-              "thread_dynamic_tools", "thread_spawn_edges", "threads"]:
-    connection.execute('CREATE TABLE "' + table + '" (id INTEGER)')
-    connection.execute('INSERT INTO "' + table + '" VALUES (1)')
-if sys.argv[2]:
-    connection.executescript(sys.argv[2])
-connection.commit()
-connection.close()
-'@
-    $null = & python -c $source $Path $Trigger
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create a state database fixture.' }
-}
-
-$codexInput = [ordered]@{
-    'active-workspace-roots' = @('D:\projects\sample')
-    'local-projects' = [ordered]@{ sample = [ordered]@{ path = 'D:\projects\sample' } }
-    'selected-project' = 'sample'
-    model = 'gpt-test'
-    'electron-persisted-atom-state' = [ordered]@{
-        'prompt-history' = @('secret prompt')
-        'thread-client-id-v1:abc' = 'client'
-        'sidebar-collapsed-sections-v1' = @('old-project')
-        'sidebar-width' = 312
-    }
-}
-$codexClean = ConvertTo-CleanCodexGlobalState -Json ($codexInput | ConvertTo-Json -Depth 20) | ConvertFrom-Json -Depth 20
-Assert-Equal 0 @($codexClean.'active-workspace-roots').Count 'Codex workspace roots are cleared'
-Assert-Equal 0 @($codexClean.'local-projects'.PSObject.Properties).Count 'Codex projects are cleared'
-Assert-Equal $null $codexClean.PSObject.Properties['selected-project'] 'Codex selected project is removed'
-Assert-Equal $null $codexClean.'electron-persisted-atom-state'.PSObject.Properties['prompt-history'] 'Codex prompt history is removed'
-Assert-Equal $null $codexClean.'electron-persisted-atom-state'.PSObject.Properties['thread-client-id-v1:abc'] 'Codex thread atom is removed'
-Assert-Equal $null $codexClean.'electron-persisted-atom-state'.PSObject.Properties['sidebar-collapsed-sections-v1'] 'Codex collapsed project sections are removed'
-Assert-Equal 312 $codexClean.'electron-persisted-atom-state'.'sidebar-width' 'Codex UI preference is preserved'
-Assert-Equal 'gpt-test' $codexClean.model 'Codex model setting is preserved'
-
 $claudeProfile = [ordered]@{
     oauthAccount = [ordered]@{ accountUuid = 'account-1' }
     mcpServers = [ordered]@{ figma = [ordered]@{ type = 'http' } }
@@ -109,102 +70,19 @@ Assert-Equal 'dark' $desktopClean.preferences.epitaxyPrefs.theme 'Claude unrelat
 Assert-Equal 'Ctrl+Alt+Space' $desktopClean.globalShortcut 'Claude Desktop shortcut is preserved'
 Assert-Equal 'keep' $desktopClean.mcpServers.figma.command 'Claude Desktop MCP configuration is preserved'
 
-$toml = @'
-model = "gpt-test"
-
-[projects.'D:\old-project']
-trust_level = "trusted"
-
-[[skills.config]]
-path = "D:\skills\global"
-'@
-$tomlClean = ConvertTo-CleanCodexConfig -Toml $toml
-Assert-True ($tomlClean -notmatch 'old-project') 'Codex project trust is removed'
-Assert-True ($tomlClean -match 'model = "gpt-test"') 'Codex general config is preserved'
-Assert-True ($tomlClean -match '\[\[skills\.config\]\]') 'Codex skill config is preserved'
-Assert-Throws { ConvertTo-CleanCodexConfig -Toml 'notes = """[projects.''D:\unsafe'']"""' } 'multiline TOML' 'Ambiguous multiline TOML is rejected'
-
 Assert-Throws { Assert-AgentStatePath -Path 'D:\outside' -Root 'C:\safe' } 'escapes' 'Path boundary is enforced'
-Assert-Throws { Assert-AgentProcessesStopped -ProcessNames @('explorer', 'ChatGPT') } 'ChatGPT' 'Active Codex blocks reset'
+Assert-Throws { Assert-AgentProcessesStopped -ProcessNames @('explorer', 'ChatGPT') } 'ChatGPT' 'Active ChatGPT blocks reset'
 Assert-AgentProcessesStopped -ProcessNames @('explorer')
 
 $broadRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-broad-$([guid]::NewGuid())"
 try {
     $null = New-Item -ItemType Directory -Path $broadRoot -Force
-    Set-Content -LiteralPath (Join-Path $broadRoot 'config.toml') -Value 'model = "test"' -Encoding utf8NoBOM
+    Set-Content -LiteralPath (Join-Path $broadRoot '.credentials.json') -Value '{"oauth":"keep"}' -Encoding utf8NoBOM
     Assert-Throws {
-        Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot $broadRoot -CodexHome $broadRoot
-    } 'broad Codex state root' 'The whole user profile cannot become a cleanup root'
+        Get-AgentStateCleanupPlan -Scope Claude -UserProfileRoot $broadRoot -ClaudeHome $broadRoot
+    } 'broad Claude state root' 'The whole user profile cannot become a cleanup root'
 } finally {
     if (Test-Path -LiteralPath $broadRoot) { Remove-Item -LiteralPath $broadRoot -Recurse -Force }
-}
-
-$testRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-state-$([guid]::NewGuid())"
-$profile = Join-Path $testRoot 'profile'
-$codex = Join-Path $profile '.codex'
-$claude = Join-Path $profile '.claude'
-$desktop = Join-Path $profile 'AppData\Roaming\Claude'
-$repoSentinel = Join-Path $testRoot 'repository\worktree.txt'
-try {
-    $null = New-Item -ItemType Directory -Path (Join-Path $codex 'sessions') -Force
-    $null = New-Item -ItemType Directory -Path (Join-Path $codex 'plugins\kept') -Force
-    $null = New-Item -ItemType Directory -Path (Join-Path $codex 'worktrees\kept') -Force
-    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $repoSentinel) -Force
-    Set-Content -LiteralPath (Join-Path $codex 'sessions\session.jsonl') -Value 'session secret' -Encoding utf8NoBOM
-    Set-Content -LiteralPath (Join-Path $codex 'auth.json') -Value '{"token":"keep"}' -Encoding utf8NoBOM
-    Set-Content -LiteralPath (Join-Path $codex 'plugins\kept\config.json') -Value '{"enabled":true}' -Encoding utf8NoBOM
-    Set-Content -LiteralPath (Join-Path $codex 'worktrees\kept\work.txt') -Value 'keep work' -Encoding utf8NoBOM
-    Set-Content -LiteralPath $repoSentinel -Value 'keep repository' -Encoding utf8NoBOM
-    Set-Content -LiteralPath (Join-Path $codex '.codex-global-state.json') -Value ($codexInput | ConvertTo-Json -Depth 20) -Encoding utf8NoBOM
-    Set-Content -LiteralPath (Join-Path $codex 'config.toml') -Value $toml -Encoding utf8NoBOM
-
-    $sessionPath = Join-Path $codex 'sessions\session.jsonl'
-    $statePath = Join-Path $codex '.codex-global-state.json'
-    $sessionHash = (Get-FileHash -LiteralPath $sessionPath).Hash
-    $stateHash = (Get-FileHash -LiteralPath $statePath).Hash
-    $stateTime = (Get-Item -LiteralPath $statePath).LastWriteTimeUtc
-    $planParameters = @{
-        Scope = 'Codex'
-        UserProfileRoot = $profile
-        CodexHome = $codex
-        ClaudeHome = $claude
-        ClaudeDesktopData = $desktop
-    }
-    $plan = Get-AgentStateCleanupPlan @planParameters
-    $preview = Invoke-AgentStateCleanupPlan -Plan $plan
-    Assert-Equal $false $preview.Applied 'Preview reports no apply'
-    Assert-Equal $sessionHash (Get-FileHash -LiteralPath $sessionPath).Hash 'Preview preserves session file'
-    Assert-Equal $stateHash (Get-FileHash -LiteralPath $statePath).Hash 'Preview preserves mixed state file'
-    Assert-Equal $stateTime (Get-Item -LiteralPath $statePath).LastWriteTimeUtc 'Preview preserves mixed state timestamp'
-
-    # Without the exact phrase the reset refuses and nothing changes.
-    Assert-Throws {
-        Invoke-AgentStateCleanupPlan -Plan $plan -Apply -RunningProcessNames @('explorer')
-    } 'exact confirmation phrase' 'Reset without the confirmation phrase is refused'
-    Assert-Throws {
-        Invoke-AgentStateCleanupPlan -Plan $plan -Apply -Confirmation 'reset local ai sessions' -RunningProcessNames @('explorer')
-    } 'exact confirmation phrase' 'The confirmation phrase is case sensitive'
-    Assert-Equal $true (Test-Path -LiteralPath $sessionPath) 'A refused reset keeps the session file'
-    Assert-Equal $stateHash (Get-FileHash -LiteralPath $statePath).Hash 'A refused reset keeps the mixed state file'
-
-    $applied = Invoke-AgentStateCleanupPlan -Plan $plan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
-    Assert-Equal $true $applied.Applied 'Apply reports reset'
-    Assert-Equal $false (Test-Path -LiteralPath (Join-Path $codex 'sessions')) 'Session directory is removed'
-    Assert-Equal '{"token":"keep"}' (Get-Content -Raw -LiteralPath (Join-Path $codex 'auth.json')).Trim() 'Codex auth is preserved'
-    Assert-Equal '{"enabled":true}' (Get-Content -Raw -LiteralPath (Join-Path $codex 'plugins\kept\config.json')).Trim() 'Codex plugins are preserved'
-    Assert-Equal 'keep work' (Get-Content -Raw -LiteralPath (Join-Path $codex 'worktrees\kept\work.txt')).Trim() 'Codex worktrees are preserved'
-    Assert-Equal 'keep repository' (Get-Content -Raw -LiteralPath $repoSentinel).Trim() 'Repositories are not traversed'
-
-    $afterState = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json -Depth 20
-    Assert-Equal 'gpt-test' $afterState.model 'Apply preserves Codex model'
-    Assert-True ((Get-Content -Raw -LiteralPath (Join-Path $codex 'config.toml')) -notmatch 'old-project') 'Apply removes project trust only'
-
-    $secondPlan = Get-AgentStateCleanupPlan @planParameters
-    $secondApply = Invoke-AgentStateCleanupPlan -Plan $secondPlan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
-    Assert-Equal 0 $secondApply.RemovedTargets 'Second apply has no file target to remove'
-    Assert-Equal 0 $secondApply.ChangedStateFiles 'Second apply is idempotent'
-} finally {
-    if (Test-Path -LiteralPath $testRoot) { Remove-Item -LiteralPath $testRoot -Recurse -Force }
 }
 
 $claudeTestRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-claude-$([guid]::NewGuid())"
@@ -215,7 +93,9 @@ try {
     $profilePath = Join-Path $claudeProfileRoot '.claude.json'
     $profileBackupPath = Join-Path $claudeProfileRoot '.claude.json.backup'
     $historyBackupPath = Join-Path $claudeHome 'backups\.claude.json.backup.1'
+    $repoSentinel = Join-Path $claudeTestRoot 'repository\worktree.txt'
     foreach ($directory in @(
+        (Split-Path -Parent $repoSentinel),
         (Join-Path $claudeHome 'projects\old-project\memory'),
         (Join-Path $claudeHome 'plugins\kept'),
         (Split-Path -Parent $historyBackupPath),
@@ -225,6 +105,7 @@ try {
     )) {
         $null = New-Item -ItemType Directory -Path $directory -Force
     }
+    Set-Content -LiteralPath $repoSentinel -Value 'keep repository' -Encoding utf8NoBOM
     Set-Content -LiteralPath (Join-Path $claudeHome 'settings.json') -Value '{"theme":"keep"}' -Encoding utf8NoBOM
     Set-Content -LiteralPath (Join-Path $claudeHome '.credentials.json') -Value '{"oauth":"keep"}' -Encoding utf8NoBOM
     Set-Content -LiteralPath (Join-Path $claudeHome '.last-cleanup') -Value 'marker' -Encoding utf8NoBOM
@@ -247,12 +128,33 @@ try {
         ClaudeDesktopData = $claudeDesktop
     }
     $claudePlan = Get-AgentStateCleanupPlan @claudePlanParameters
+    $sessionPath = Join-Path $claudeDesktop 'claude-code-sessions\session.json'
+    $sessionHash = (Get-FileHash -LiteralPath $sessionPath).Hash
+    $profileHash = (Get-FileHash -LiteralPath $profilePath).Hash
+    $profileTime = (Get-Item -LiteralPath $profilePath).LastWriteTimeUtc
+    $preview = Invoke-AgentStateCleanupPlan -Plan $claudePlan
+    Assert-Equal $false $preview.Applied 'Preview reports no apply'
+    Assert-Equal $sessionHash (Get-FileHash -LiteralPath $sessionPath).Hash 'Preview preserves session file'
+    Assert-Equal $profileHash (Get-FileHash -LiteralPath $profilePath).Hash 'Preview preserves mixed state file'
+    Assert-Equal $profileTime (Get-Item -LiteralPath $profilePath).LastWriteTimeUtc 'Preview preserves mixed state timestamp'
+
+    # Without the exact phrase the reset refuses and nothing changes.
+    Assert-Throws {
+        Invoke-AgentStateCleanupPlan -Plan $claudePlan -Apply -RunningProcessNames @('explorer')
+    } 'exact confirmation phrase' 'Reset without the confirmation phrase is refused'
+    Assert-Throws {
+        Invoke-AgentStateCleanupPlan -Plan $claudePlan -Apply -Confirmation 'reset local ai sessions' -RunningProcessNames @('explorer')
+    } 'exact confirmation phrase' 'The confirmation phrase is case sensitive'
+    Assert-Equal $true (Test-Path -LiteralPath $sessionPath) 'A refused reset keeps the session file'
+    Assert-Equal $profileHash (Get-FileHash -LiteralPath $profilePath).Hash 'A refused reset keeps the mixed state file'
+
     $claudeResult = Invoke-AgentStateCleanupPlan -Plan $claudePlan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
     Assert-Equal $true $claudeResult.Applied 'Claude cleanup applies without calling an installed executable'
     Assert-Equal $false (Test-Path -LiteralPath (Join-Path $claudeHome 'projects')) 'Claude projects and automatic memory are removed'
     Assert-Equal $false (Test-Path -LiteralPath (Join-Path $claudeDesktop 'claude-code-sessions')) 'Claude Desktop sessions are removed'
     Assert-Equal $false (Test-Path -LiteralPath (Join-Path $claudeDesktop 'Cache')) 'Claude Desktop path cache is removed'
     Assert-Equal $false (Test-Path -LiteralPath (Join-Path $claudeDesktop 'Local Storage\leveldb')) 'Claude Desktop local storage and folder references are removed'
+    Assert-Equal 'keep repository' (Get-Content -Raw -LiteralPath $repoSentinel).Trim() 'Repositories are not traversed'
     Assert-Equal '{"theme":"keep"}' (Get-Content -Raw -LiteralPath (Join-Path $claudeHome 'settings.json')).Trim() 'Claude settings are preserved'
     Assert-Equal '{"oauth":"keep"}' (Get-Content -Raw -LiteralPath (Join-Path $claudeHome '.credentials.json')).Trim() 'Claude credentials are preserved'
     Assert-Equal 'marker' (Get-Content -Raw -LiteralPath (Join-Path $claudeHome '.last-cleanup')).Trim() 'Claude cleanup marker is preserved'
@@ -275,136 +177,18 @@ try {
     if (Test-Path -LiteralPath $claudeTestRoot) { Remove-Item -LiteralPath $claudeTestRoot -Recurse -Force }
 }
 
-# The mixed Codex databases are cleaned through Python's sqlite3 module.
-$hasPython = $null -ne (Get-Command python -ErrorAction SilentlyContinue)
-if (-not $hasPython) { Write-Host 'Python is not installed: the SQLite cases are skipped.' -ForegroundColor Yellow }
-if ($hasPython) {
-$sqliteRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-sqlite-$([guid]::NewGuid())"
-try {
-    $sqliteProfile = Join-Path $sqliteRoot 'profile'
-    $sqliteCodex = Join-Path $sqliteProfile '.codex'
-    $sqliteDir = Join-Path $sqliteCodex 'sqlite'
-    $null = New-Item -ItemType Directory -Path $sqliteDir -Force
-    $stateDatabase = Join-Path $sqliteCodex 'state_5.sqlite'
-    $catalogDatabase = Join-Path $sqliteDir 'codex-dev.db'
-    $createSource = @'
-import sqlite3, sys
-state, catalog = sys.argv[1], sys.argv[2]
-connection = sqlite3.connect(state)
-for table in ["_sqlx_migrations", "backfill_state", "external_agent_config_imports", "remote_control_enrollments",
-              "thread_dynamic_tools", "thread_spawn_edges", "threads", "thread_sections", "agent_jobs",
-              "agent_job_items"]:
-    connection.execute('CREATE TABLE "' + table + '" (id INTEGER)')
-    connection.execute('INSERT INTO "' + table + '" VALUES (1)')
-connection.commit()
-connection.close()
-connection = sqlite3.connect(catalog)
-for table in ["inbox_items", "automation_runs", "thread_timeline_ledger", "local_thread_catalog",
-              "local_thread_catalog_sync_state", "local_thread_catalog_hosts", "automations",
-              "local_app_server_feature_enablement"]:
-    connection.execute('CREATE TABLE "' + table + '" (id INTEGER)')
-    connection.execute('INSERT INTO "' + table + '" VALUES (1)')
-connection.execute("CREATE TABLE local_thread_catalog_metadata (id INTEGER PRIMARY KEY, catalog_revision INTEGER)")
-connection.execute("INSERT INTO local_thread_catalog_metadata VALUES (1, 9)")
-connection.commit()
-connection.close()
-'@
-    $null = & python -c $createSource $stateDatabase $catalogDatabase
-    if ($LASTEXITCODE -ne 0) { throw 'Could not create SQLite fixtures.' }
-
-    $sqlitePlan = Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot $sqliteProfile -CodexHome $sqliteCodex
-    $sqliteResult = Invoke-AgentStateCleanupPlan -Plan $sqlitePlan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
-    Assert-Equal 2 $sqliteResult.DatabaseResults.Count 'Both mixed Codex databases are cleaned'
-    Assert-Equal '(0,)' ((& python -m sqlite3 $stateDatabase 'SELECT COUNT(*) FROM threads').Trim()) 'Codex thread table is empty'
-    Assert-Equal '(1,)' ((& python -m sqlite3 $stateDatabase 'SELECT COUNT(*) FROM remote_control_enrollments').Trim()) 'Remote control enrollment is preserved'
-    Assert-Equal '(0,)' ((& python -m sqlite3 $stateDatabase 'SELECT COUNT(*) FROM agent_job_items').Trim()) 'Agent job session items are empty'
-    Assert-Equal '(1,)' ((& python -m sqlite3 $stateDatabase 'SELECT COUNT(*) FROM agent_jobs').Trim()) 'Agent job definitions are preserved'
-    Assert-Equal '(0,)' ((& python -m sqlite3 $catalogDatabase 'SELECT COUNT(*) FROM automation_runs').Trim()) 'Automation runs are empty'
-    Assert-Equal '(1,)' ((& python -m sqlite3 $catalogDatabase 'SELECT COUNT(*) FROM automations').Trim()) 'Automation definitions are preserved'
-    Assert-Equal '(0,)' ((& python -m sqlite3 $catalogDatabase 'SELECT catalog_revision FROM local_thread_catalog_metadata WHERE id=1').Trim()) 'Catalog revision is reset'
-} finally {
-    if (Test-Path -LiteralPath $sqliteRoot) { Remove-Item -LiteralPath $sqliteRoot -Recurse -Force }
-}
-
-$protectedRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-protected-$([guid]::NewGuid())"
-try {
-    $protectedCodex = Join-Path $protectedRoot '.codex'
-    $null = New-Item -ItemType Directory -Path $protectedCodex -Force
-    $protectedDatabase = Join-Path $protectedCodex 'state_5.sqlite'
-    New-TestStateDatabase $protectedDatabase @'
-CREATE TRIGGER mutate_protected AFTER DELETE ON threads
-BEGIN
-    UPDATE remote_control_enrollments SET id = id + 1;
-END;
-'@
-    $protectedPlan = Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot $protectedRoot -CodexHome $protectedCodex
-    Assert-Throws {
-        Invoke-AgentStateCleanupPlan -Plan $protectedPlan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
-    } 'protected SQLite table changed' 'Protected-table trigger rolls back the database'
-    Assert-Equal '(1,)' ((& python -m sqlite3 $protectedDatabase 'SELECT id FROM remote_control_enrollments').Trim()) 'Protected row is unchanged after rollback'
-    Assert-Equal '(1,)' ((& python -m sqlite3 $protectedDatabase 'SELECT id FROM threads').Trim()) 'Target row is restored after protected-table rollback'
-} finally {
-    if (Test-Path -LiteralPath $protectedRoot) { Remove-Item -LiteralPath $protectedRoot -Recurse -Force }
-}
-
-$repopulateRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-repopulate-$([guid]::NewGuid())"
-try {
-    $repopulateCodex = Join-Path $repopulateRoot '.codex'
-    $null = New-Item -ItemType Directory -Path $repopulateCodex -Force
-    $repopulateDatabase = Join-Path $repopulateCodex 'state_5.sqlite'
-    New-TestStateDatabase $repopulateDatabase @'
-CREATE TRIGGER repopulate_threads AFTER DELETE ON threads
-BEGIN
-    INSERT INTO threads VALUES (99);
-END;
-'@
-    $repopulatePlan = Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot $repopulateRoot -CodexHome $repopulateCodex
-    Assert-Throws {
-        Invoke-AgentStateCleanupPlan -Plan $repopulatePlan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
-    } 'expected empty state' 'Target-table trigger rolls back the database'
-    Assert-Equal '(1,)' ((& python -m sqlite3 $repopulateDatabase 'SELECT id FROM threads').Trim()) 'Original target row is restored after target postcondition failure'
-} finally {
-    if (Test-Path -LiteralPath $repopulateRoot) { Remove-Item -LiteralPath $repopulateRoot -Recurse -Force }
-}
-
-$driftRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-drift-$([guid]::NewGuid())"
-try {
-    $driftCodex = Join-Path $driftRoot '.codex'
-    $null = New-Item -ItemType Directory -Path $driftCodex -Force
-    $null = New-Item -ItemType Directory -Path (Join-Path $driftCodex 'sessions') -Force
-    $driftSession = Join-Path $driftCodex 'sessions\keep-on-failure.jsonl'
-    Set-Content -LiteralPath $driftSession -Value 'must survive failed preflight' -Encoding utf8NoBOM
-    $driftDatabase = Join-Path $driftCodex 'state_5.sqlite'
-    $driftSource = @'
-import sqlite3, sys
-connection = sqlite3.connect(sys.argv[1])
-connection.execute("CREATE TABLE threads (id INTEGER)")
-connection.commit()
-connection.close()
-'@
-    $null = & python -c $driftSource $driftDatabase
-    $driftPlan = Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot $driftRoot -CodexHome $driftCodex
-    Assert-Throws {
-        Invoke-AgentStateCleanupPlan -Plan $driftPlan -Apply -Confirmation 'RESET LOCAL AI SESSIONS' -RunningProcessNames @('explorer')
-    } 'Unexpected SQLite schema' 'Unknown SQLite schema stops cleanup'
-    Assert-Equal $true (Test-Path -LiteralPath $driftSession) 'Failed preflight writes nothing'
-} finally {
-    if (Test-Path -LiteralPath $driftRoot) { Remove-Item -LiteralPath $driftRoot -Recurse -Force }
-}
-}
-
 $linkRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-link-$([guid]::NewGuid())"
 try {
-    $linkCodex = Join-Path $linkRoot '.codex'
+    $linkClaude = Join-Path $linkRoot '.claude'
     $linkTarget = Join-Path $linkRoot 'external-sessions'
-    $null = New-Item -ItemType Directory -Path $linkCodex -Force
+    $null = New-Item -ItemType Directory -Path $linkClaude -Force
     $null = New-Item -ItemType Directory -Path $linkTarget -Force
-    Set-Content -LiteralPath (Join-Path $linkCodex 'installation_id') -Value 'test-installation' -Encoding utf8NoBOM
-    $null = New-Item -ItemType Junction -Path (Join-Path $linkCodex 'sessions') -Target $linkTarget
+    Set-Content -LiteralPath (Join-Path $linkClaude '.credentials.json') -Value '{"oauth":"keep"}' -Encoding utf8NoBOM
+    $null = New-Item -ItemType Junction -Path (Join-Path $linkClaude 'sessions') -Target $linkTarget
     Assert-Throws {
-        Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot $linkRoot -CodexHome $linkCodex
+        Get-AgentStateCleanupPlan -Scope Claude -UserProfileRoot $linkRoot -ClaudeHome $linkClaude
     } 'reparse point' 'Reparse-point cleanup target is rejected'
-    Remove-Item -LiteralPath (Join-Path $linkCodex 'sessions') -Force
+    Remove-Item -LiteralPath (Join-Path $linkClaude 'sessions') -Force
 } finally {
     if (Test-Path -LiteralPath $linkRoot) { Remove-Item -LiteralPath $linkRoot -Recurse -Force }
 }
@@ -431,12 +215,12 @@ $ancestorExternal = Join-Path ([IO.Path]::GetTempPath()) "agent-state-ancestor-e
 $ancestorJunction = Join-Path $ancestorRoot 'profile\linked'
 try {
     $null = New-Item -ItemType Directory -Path (Split-Path -Parent $ancestorJunction) -Force
-    $ancestorCodex = Join-Path $ancestorExternal '.codex'
-    $null = New-Item -ItemType Directory -Path (Join-Path $ancestorCodex 'sessions') -Force
-    Set-Content -LiteralPath (Join-Path $ancestorCodex 'installation_id') -Value 'test-installation' -Encoding utf8NoBOM
+    $ancestorClaude = Join-Path $ancestorExternal '.claude'
+    $null = New-Item -ItemType Directory -Path (Join-Path $ancestorClaude 'sessions') -Force
+    Set-Content -LiteralPath (Join-Path $ancestorClaude '.credentials.json') -Value 'test-installation' -Encoding utf8NoBOM
     $null = New-Item -ItemType Junction -Path $ancestorJunction -Target $ancestorExternal
     Assert-Throws {
-        Get-AgentStateCleanupPlan -Scope Codex -UserProfileRoot (Join-Path $ancestorRoot 'profile') -CodexHome (Join-Path $ancestorJunction '.codex')
+        Get-AgentStateCleanupPlan -Scope Claude -UserProfileRoot (Join-Path $ancestorRoot 'profile') -ClaudeHome (Join-Path $ancestorJunction '.claude')
     } 'reparse point ancestor' 'A reparse point above the agent root is rejected'
 } finally {
     if (Test-Path -LiteralPath $ancestorJunction) { Remove-Item -LiteralPath $ancestorJunction -Force }
