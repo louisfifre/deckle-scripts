@@ -7,13 +7,41 @@ any git repository as a vendored `scripts/` folder, updated from this repository
 
 ## Install
 
-From the repository to equip, in PowerShell:
+You need Git and PowerShell 7. In the repository to equip:
 
 ```powershell
 irm https://raw.githubusercontent.com/louisfifre/deckle-scripts/main/install.ps1 | iex
+.\scripts\setup\install-hooks.ps1 -Apply   # once: TREE.md and scripts/INVENTORY.md at each commit
 ```
 
-Then open the menu:
+The first line copies the latest version tagged on GitHub into `scripts/`:
+the menu, its library and the `git`, `maintenance` and `setup` packs. The
+list of installed files goes to `scripts/.deckle-scripts/manifest.json`.
+
+A version that only exists in a local clone (not pushed yet) installs from
+the clone's own update script, pointed at the repository:
+
+```powershell
+pwsh -File C:\Code\deckle-scripts\scripts\settings\update.ps1 -Target . -Source C:\Code\deckle-scripts -Apply
+```
+
+## Update
+
+In the equipped repository:
+
+```powershell
+.\scripts\settings\update.ps1          # preview: the version and the files that would change
+.\scripts\settings\update.ps1 -Apply   # install it
+```
+
+The source is the one recorded at the last install. Add
+`-Source C:\Code\deckle-scripts` to take a local clone, and
+`-Version X.Y.Z` to pick a version rather than the latest tag. An installed
+file edited by hand stops the update: make the change here, tag it, update
+again. Then commit the `scripts/` changes of the equipped repository. The
+menu offers both commands under Settings.
+
+## Use
 
 ```powershell
 .\scripts\menu.ps1
@@ -32,6 +60,10 @@ would hide and the conventions they break.
 .\scripts\menu.ps1 -Run <id> [-Variant v] # one Action, its Journal, an exit code
 .\scripts\menu.ps1 -Snapshot Menu        # one deterministic frame, for inspection
 ```
+
+`scripts/INVENTORY.md`, regenerated at each commit, lists every script with
+its sentence, actions and parameters, those the menu hides included: an
+agent reads it to pick a script instead of opening each one.
 
 ## Writing a script the menu offers
 
