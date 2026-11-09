@@ -84,6 +84,14 @@ try {
     Assert-Matches $preview.Text '# Changelog' 'the preview prints the document header'
     Assert-Matches $preview.Text 'All notable changes to sample-project are recorded here\.' 'the header names the repository folder'
     Assert-Matches $preview.Text 'do not edit it by hand' 'the header says the file is generated'
+
+    # From a linked worktree the project keeps the main checkout's name.
+    $worktree = Join-Path $root 'some-worktree'
+    & git -C $repo worktree add --quiet --detach $worktree 2>$null
+    if ($LASTEXITCODE -ne 0) { throw 'fixture worktree failed' }
+    $fromWorktree = Invoke-Script @('-Target', $worktree)
+    Assert-Matches $fromWorktree.Text 'All notable changes to sample-project are recorded here\.' 'a worktree is named after the main checkout'
+    & git -C $repo worktree remove --force $worktree
     Assert-Matches $preview.Text 'CHANGELOG\.md does not exist and would be created' 'the preview says the file would be created'
 
     $released = Get-Section $preview.Text '^## \[0\.1\.0\]'
@@ -143,8 +151,8 @@ try {
     Add-Tag $repo 'release/v0.3.0'
     & git -C $repo remote add origin 'https://github.com/owner/repo.git'
     $https = Invoke-Script @('-Target', $repo)
-    Assert-Matches $https.Text ([regex]::Escape('## [0.3.0](https://github.com/owner/repo/compare/release/v0.1.0...release/v0.3.0)')) 'a heading links to the comparison with the previous release'
-    Assert-Matches $https.Text ([regex]::Escape('## [0.1.0](https://github.com/owner/repo/releases/tag/release/v0.1.0)')) 'the first heading links to its tag'
+    Assert-Matches $https.Text ([regex]::Escape('## [0.3.0](https://github.com/owner/repo/compare/v0.1.0...v0.3.0)')) 'a heading links to the comparison of the version tags'
+    Assert-Matches $https.Text ([regex]::Escape('## [0.1.0](https://github.com/owner/repo/releases/tag/v0.1.0)')) 'the first heading links to the release of its version tag'
     & git -C $repo remote set-url origin 'git@github.com:owner/repo.git'
     $ssh = Invoke-Script @('-Target', $repo)
     Assert-Matches $ssh.Text ([regex]::Escape('(https://github.com/owner/repo/compare/')) 'an SSH remote links the same way'
