@@ -66,8 +66,8 @@ block at the top of a script that names it (see below). Each folder is a
 level: an entry ending with `…` opens it, Escape goes back. Settings, at the
 bottom, holds the launcher's own scripts: `update.ps1` checks for and applies
 the next version from the recorded source; `check-scripts.ps1` reports the
-scripts the menu would hide and the conventions they break. Logs lists the
-journals of the actions already run.
+scripts the menu would hide and the conventions they break. Logs lists the output
+of every action run since the menu opened.
 
 ## For a shell or an agent
 
