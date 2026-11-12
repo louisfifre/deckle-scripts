@@ -71,8 +71,8 @@ Assert-Equal 'Ctrl+Alt+Space' $desktopClean.globalShortcut 'Claude Desktop short
 Assert-Equal 'keep' $desktopClean.mcpServers.figma.command 'Claude Desktop MCP configuration is preserved'
 
 Assert-Throws { Assert-AgentStatePath -Path 'D:\outside' -Root 'C:\safe' } 'escapes' 'Path boundary is enforced'
-Assert-Throws { Assert-AgentProcessesStopped -ProcessNames @('explorer', 'ChatGPT') } 'ChatGPT' 'Active ChatGPT blocks reset'
-Assert-AgentProcessesStopped -ProcessNames @('explorer')
+Assert-Throws { Assert-AgentProcessesStopped -ProcessNames @('explorer', 'claude') } 'claude' 'Active Claude blocks reset'
+Assert-AgentProcessesStopped -ProcessNames @('explorer', 'ChatGPT')
 
 $broadRoot = Join-Path ([IO.Path]::GetTempPath()) "agent-state-broad-$([guid]::NewGuid())"
 try {
