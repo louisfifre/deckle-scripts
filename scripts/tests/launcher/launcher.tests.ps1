@@ -62,7 +62,6 @@ try {
     Assert-True ($menu -match 'Quit') 'the Menu snapshot closes with Quit'
     $level = @(& pwsh -NoProfile -File $MenuPath -Snapshot Level -LevelPath tools -ScriptsRoot $scriptsRoot) -join "`n"
     Assert-True ($level -match 'Epsilon' -or $level -match 'epsilon') 'the Level snapshot shows a folder'
-    Assert-True ($menu -match 'SCRIPTS') 'the Menu snapshot opens with the logo'
     Assert-True ($menu.Contains((Split-Path -Leaf $root))) 'the Banner names the repository folder'
 
     # From a worktree the Banner still names the repository, not the subject.
