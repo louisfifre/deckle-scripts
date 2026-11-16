@@ -1,8 +1,8 @@
 # Deckle Scripts
 
 A terminal menu that offers the scripts of a repository, with the packs of
-scripts a repository needs from its first day: setup, versions and
-maintenance. A pack is a folder of scripts under `scripts/` that installs as
+scripts a repository needs from its first day: setup, versions, maintenance
+and prod. A pack is a folder of scripts under `scripts/` that installs as
 a unit. It runs under PowerShell 7 on Windows and installs into any git
 repository as a copy kept in its `scripts/` folder, updated from this
 repository.
@@ -18,7 +18,7 @@ irm https://raw.githubusercontent.com/louisfifre/deckle-scripts/main/install.ps1
 ```
 
 The first line copies the latest version tagged on GitHub into `scripts/`:
-the menu, its library and the `git`, `maintenance` and `setup` packs. The
+the menu, its library and the `git`, `maintenance`, `prod` and `setup` packs. The
 list of installed files goes to `scripts/.deckle-scripts/manifest.json`. The
 second installs the git hooks that regenerate `TREE.md` and
 `scripts/INVENTORY.md` at each commit; hooks are not versioned, so run it
@@ -34,6 +34,10 @@ pwsh -File C:\Code\deckle-scripts\scripts\settings\update.ps1 -Target . -Source 
 Without `-Version`, a local clone is read as it is on disk, uncommitted
 changes included: that is for trying a change before tagging it.
 
+The `prod` pack deploys a version to the repository's prod copy, the build
+its maintainer runs every day; `scripts/prod/README.md` says how to set it
+up.
+
 ## Update
 
 In the equipped repository:
@@ -48,6 +52,9 @@ the clone's path if the last install came from a local clone. `-Source`
 changes it (a URL or a path), `-Version X.Y.Z` picks a version rather than
 the latest tag. Then commit the `scripts/` changes of the equipped
 repository. The menu offers both commands under Settings.
+
+An update keeps the packs of the last install. To add a pack that came later,
+such as `prod`, name every pack to keep: `-Packs git,maintenance,prod,setup`.
 
 Two cases stop an update. An installed file edited by hand: make the change
 in this repository, tag it, update again, or pass `-Force` to drop the local
